@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const uploadDir = path.join(process.cwd(), "public", "uploads");
 const uploadApiPrefix = "/api/uploads/";
@@ -13,6 +14,56 @@ const mimeExtensions: Record<string, string> = {
 };
 
 type ImageUploadPrefix = "album" | "page" | "stamp";
+
+let r2Client: S3Client | null = null;
+
+function requiredR2Env() {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucket = process.env.R2_BUCKET_NAME;
+
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+    return null;
+  }
+
+  return {
+    accountId,
+    accessKeyId,
+    secretAccessKey,
+    bucket,
+  };
+}
+
+function getR2Client() {
+  const env = requiredR2Env();
+
+  if (!env) {
+    return null;
+  }
+
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: "auto",
+      endpoint: `https://${env.accountId}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: env.accessKeyId,
+        secretAccessKey: env.secretAccessKey,
+      },
+    });
+  }
+
+  return {
+    bucket: env.bucket,
+    client: r2Client,
+  };
+}
+
+function publicR2UrlForFilename(filename: string) {
+  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, "");
+
+  return publicBaseUrl ? `${publicBaseUrl}/${filename}` : imageUrlForFilename(filename);
+}
 
 function imageUrlForFilename(filename: string) {
   return `${uploadApiPrefix}${filename}`;
@@ -39,6 +90,20 @@ async function writeImageBytes(
   const extension =
     mimeExtensions[mimeType] || path.extname(originalName).toLowerCase() || ".jpg";
   const filename = `${prefix}-${Date.now()}-${randomUUID()}${extension}`;
+  const r2 = getR2Client();
+
+  if (r2) {
+    await r2.client.send(
+      new PutObjectCommand({
+        Bucket: r2.bucket,
+        Key: filename,
+        Body: bytes,
+        ContentType: mimeType,
+      }),
+    );
+
+    return publicR2UrlForFilename(filename);
+  }
 
   await mkdir(uploadDir, { recursive: true });
   await writeFile(path.join(uploadDir, filename), bytes);
@@ -113,6 +178,40 @@ export function publicUploadUrlToPath(imageUrl: string) {
 }
 
 export async function readPublicUpload(imageUrl: string) {
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+      throw new Error("Bild konnte nicht geladen werden.");
+    }
+
+    return {
+      bytes: Buffer.from(await response.arrayBuffer()),
+      mimeType: response.headers.get("content-type") || "image/jpeg",
+    };
+  }
+
+  const r2 = getR2Client();
+
+  if (r2 && imageUrl.startsWith(uploadApiPrefix)) {
+    const object = await r2.client.send(
+      new GetObjectCommand({
+        Bucket: r2.bucket,
+        Key: filenameFromUploadUrl(imageUrl),
+      }),
+    );
+    const bytes = await object.Body?.transformToByteArray();
+
+    if (!bytes) {
+      throw new Error("Bild konnte nicht aus R2 gelesen werden.");
+    }
+
+    return {
+      bytes: Buffer.from(bytes),
+      mimeType: object.ContentType || "image/jpeg",
+    };
+  }
+
   const filePath = publicUploadUrlToPath(imageUrl);
 
   return {

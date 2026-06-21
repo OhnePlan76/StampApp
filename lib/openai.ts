@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import OpenAI from "openai";
 import { z } from "zod";
 
@@ -105,9 +104,9 @@ function getClient() {
   });
 }
 
-export async function analyzeStampImage(filePath: string, mimeType: string) {
+export async function analyzeStampImageBytes(bytes: Buffer, mimeType: string) {
   const client = getClient();
-  const imageBase64 = await readFile(filePath, "base64");
+  const imageBase64 = bytes.toString("base64");
   const model = process.env.OPENAI_VISION_MODEL || "gpt-5.5";
 
   const response = await client.responses.create({

@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { analyzeStampImage } from "@/lib/openai";
+import { analyzeStampImageBytes } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
-import { mimeTypeFromPath, publicUploadUrlToPath } from "@/lib/uploads";
+import { readPublicUpload } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -21,8 +21,8 @@ export async function POST(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Marke nicht gefunden." }, { status: 404 });
     }
 
-    const filePath = publicUploadUrlToPath(stamp.cropUrl);
-    const analysis = await analyzeStampImage(filePath, mimeTypeFromPath(filePath));
+    const image = await readPublicUpload(stamp.cropUrl);
+    const analysis = await analyzeStampImageBytes(image.bytes, image.mimeType);
 
     const updatedStamp = await prisma.stamp.update({
       where: { id: stamp.id },

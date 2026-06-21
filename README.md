@@ -27,9 +27,17 @@ Lokal eine `.env` anlegen:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
 OPENAI_API_KEY="sk-..."
 OPENAI_VISION_MODEL="gpt-5.5"
+
+R2_ACCOUNT_ID="cloudflare-account-id"
+R2_BUCKET_NAME="stampapp"
+R2_ACCESS_KEY_ID="r2-access-key-id"
+R2_SECRET_ACCESS_KEY="r2-secret-access-key"
+R2_PUBLIC_BASE_URL="https://pub-....r2.dev"
 ```
 
 `OPENAI_VISION_MODEL` ist optional. Ohne Wert nutzt die App `gpt-5.5`.
+Die R2-Variablen sind optional. Ohne R2 speichert die App lokal in
+`public/uploads`. Auf Railway sollten R2-Variablen gesetzt sein.
 
 ## Railway
 
@@ -39,6 +47,11 @@ OPENAI_VISION_MODEL="gpt-5.5"
    - `DATABASE_URL` aus Railway PostgreSQL
    - `OPENAI_API_KEY`
    - optional `OPENAI_VISION_MODEL`
+   - `R2_ACCOUNT_ID`
+   - `R2_BUCKET_NAME`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - optional `R2_PUBLIC_BASE_URL`
 4. Deploy starten.
 
 `railway.json` baut mit `npm run build` und startet mit:
@@ -49,7 +62,21 @@ npx prisma migrate deploy && npm run start
 
 ## Uploads
 
-Albumseiten und Marken-Crops werden in `public/uploads` gespeichert und als `/uploads/...` referenziert. Das erfuellt das MVP. Fuer dauerhaften Produktivbetrieb auf Railway sollte spaeter ein Volume oder Object Storage genutzt werden, weil das normale App-Dateisystem bei Deploys nicht als dauerhaftes Archiv gedacht ist.
+Wenn R2 konfiguriert ist, werden Albumfotos, Albumseiten und Marken-Crops in
+Cloudflare R2 gespeichert. Ohne R2 fallen Uploads lokal auf `public/uploads`
+zurueck. Fuer Railway-Produktivbetrieb ist R2 empfohlen, weil das normale
+App-Dateisystem bei Deploys nicht als dauerhaftes Archiv gedacht ist.
+
+R2-Free-Tier-Planung:
+
+- Standard Storage verwenden, nicht Infrequent Access.
+- Kamera-Fotos werden clientseitig verkleinert und komprimiert.
+- Pro Foto wird ein Objekt geschrieben.
+- `R2_PUBLIC_BASE_URL` nutzt direkte Bildauslieferung, falls der Bucket
+  oeffentlich lesbar ist. Ohne Public URL liefert die App Bilder ueber
+  `/api/uploads/...` aus.
+- Cloudflare R2 Free Tier umfasst aktuell 10 GB-month Storage, 1 Mio. Class-A-
+  Operationen und 10 Mio. Class-B-Operationen pro Monat.
 
 ## Bewertungslogik
 
