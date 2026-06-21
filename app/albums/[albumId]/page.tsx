@@ -7,7 +7,9 @@ import { StampTable } from "@/components/StampTable";
 
 type AlbumPageProps = {
   params: Promise<{ albumId: string }> | { albumId: string };
-  searchParams?: Promise<{ filter?: string }> | { filter?: string };
+  searchParams?:
+    | Promise<{ actionError?: string; filter?: string }>
+    | { actionError?: string; filter?: string };
 };
 
 function pageStatusLabel(status: string) {
@@ -28,6 +30,7 @@ export default async function AlbumPage({
   const { albumId } = await params;
   const query = searchParams ? await searchParams : {};
   const expertOnly = query.filter === "expert";
+  const actionError = query.actionError;
 
   const album = await prisma.album.findUnique({
     where: { id: albumId },
@@ -98,7 +101,13 @@ export default async function AlbumPage({
         </div>
       </header>
 
-      <section className="form-panel album-cover-panel">
+      {actionError ? (
+        <div className="error-banner" role="alert">
+          {actionError}
+        </div>
+      ) : null}
+
+      <section className="form-panel album-cover-panel" id="albumfoto">
         <h2>Albumfoto</h2>
         <form action={updateAlbumCover} className="album-cover-form">
           <input type="hidden" name="albumId" value={album.id} />
@@ -154,7 +163,7 @@ export default async function AlbumPage({
         </form>
       </section>
 
-      <section className="section">
+      <section className="section" id="seitenliste">
         <h2>Seitenliste</h2>
         {album.pages.length === 0 ? (
           <p className="empty-state">Noch keine Seiten hochgeladen.</p>

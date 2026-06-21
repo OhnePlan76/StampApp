@@ -19,6 +19,16 @@ function optionalText(formData: FormData, key: string) {
   return textValue(formData, key) || null;
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Aktion fehlgeschlagen.";
+}
+
+function redirectWithActionError(albumId: string, message: string, anchor: string) {
+  redirect(
+    `/albums/${albumId}?actionError=${encodeURIComponent(message)}#${anchor}`,
+  );
+}
+
 export async function createAlbum(formData: FormData) {
   const name = textValue(formData, "name");
   const coverImage = fileValue(formData, "image");
@@ -54,17 +64,22 @@ export async function updateAlbumCover(formData: FormData) {
     throw new Error("Album ist erforderlich.");
   }
 
-  const imageUrl = await saveFormImageUpload(coverImage, coverImageData, "album");
+  try {
+    const imageUrl = await saveFormImageUpload(coverImage, coverImageData, "album");
 
-  await prisma.album.update({
-    where: { id: albumId },
-    data: {
-      imageUrl,
-    },
-  });
+    await prisma.album.update({
+      where: { id: albumId },
+      data: {
+        imageUrl,
+      },
+    });
 
-  revalidatePath("/");
-  revalidatePath(`/albums/${albumId}`);
+    revalidatePath("/");
+    revalidatePath(`/albums/${albumId}`);
+  } catch (error) {
+    console.error("updateAlbumCover failed", error);
+    redirectWithActionError(albumId, errorMessage(error), "albumfoto");
+  }
 }
 
 export async function uploadPage(formData: FormData) {
@@ -74,24 +89,33 @@ export async function uploadPage(formData: FormData) {
   const imageData = textValue(formData, "imageData");
   const quality = optionalText(formData, "quality");
 
-  if (!albumId || !Number.isInteger(pageNo) || pageNo < 1) {
-    throw new Error("Album, Seitennummer und Bild sind erforderlich.");
+  if (!albumId) {
+    throw new Error("Album ist erforderlich.");
   }
 
-  const imageUrl = await saveFormImageUpload(image, imageData, "page");
+  try {
+    if (!Number.isInteger(pageNo) || pageNo < 1) {
+      throw new Error("Seitennummer ist erforderlich.");
+    }
 
-  await prisma.page.create({
-    data: {
-      albumId,
-      pageNo,
-      imageUrl,
-      notes: optionalText(formData, "notes"),
-      quality,
-      status: quality === "nachfotografieren" ? "nachfotografieren" : "offen",
-    },
-  });
+    const imageUrl = await saveFormImageUpload(image, imageData, "page");
 
-  revalidatePath(`/albums/${albumId}`);
+    await prisma.page.create({
+      data: {
+        albumId,
+        pageNo,
+        imageUrl,
+        notes: optionalText(formData, "notes"),
+        quality,
+        status: quality === "nachfotografieren" ? "nachfotografieren" : "offen",
+      },
+    });
+
+    revalidatePath(`/albums/${albumId}`);
+  } catch (error) {
+    console.error("uploadPage failed", error);
+    redirectWithActionError(albumId, errorMessage(error), "neue-seite");
+  }
 }
 
 export async function uploadStampCrop(formData: FormData) {
@@ -101,21 +125,26 @@ export async function uploadStampCrop(formData: FormData) {
   const cropData = textValue(formData, "cropData");
 
   if (!albumId || !pageId) {
-    throw new Error("Seite und Marken-Crop sind erforderlich.");
+    throw new Error("Album, Seitennummer und Bild sind erforderlich.");
   }
 
-  await prisma.stamp.create({
-    data: {
-      pageId,
-      cropUrl: await saveFormImageUpload(crop, cropData, "stamp"),
-      notes: optionalText(formData, "notes"),
-      positionHint: optionalText(formData, "positionHint"),
-      manualCountryHint: optionalText(formData, "manualCountryHint"),
-      manualConditionHint: optionalText(formData, "manualConditionHint"),
-      status: "unanalysiert",
-    },
-  });
+  try {
+    await prisma.stamp.create({
+      data: {
+        pageId,
+        cropUrl: await saveFormImageUpload(crop, cropData, "stamp"),
+        notes: optionalText(formData, "notes"),
+        positionHint: optionalText(formData, "positionHint"),
+        manualCountryHint: optionalText(formData, "manualCountryHint"),
+        manualConditionHint: optionalText(formData, "manualConditionHint"),
+        status: "unanalysiert",
+      },
+    });
 
-  revalidatePath(`/albums/${albumId}`);
-  revalidatePath("/");
+    revalidatePath(`/albums/${albumId}`);
+    revalidatePath("/");
+  } catch (error) {
+    console.error("uploadStampCrop failed", error);
+    redirectWithActionError(albumId, errorMessage(error), "seitenliste");
+  }
 }

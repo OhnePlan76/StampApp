@@ -10,7 +10,7 @@ type CameraCaptureFieldProps = {
 };
 
 function revokePreview(url: string | null) {
-  if (url) {
+  if (url?.startsWith("blob:")) {
     URL.revokeObjectURL(url);
   }
 }
@@ -33,6 +33,31 @@ function targetImageSize(width: number, height: number) {
     width: Math.round(width * scale),
     height: Math.round(height * scale),
   };
+}
+
+function resizeImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const size = targetImageSize(image.naturalWidth, image.naturalHeight);
+
+      canvas.width = size.width;
+      canvas.height = size.height;
+      canvas.getContext("2d")?.drawImage(image, 0, 0, size.width, size.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Bild konnte nicht vorbereitet werden."));
+    };
+
+    image.src = objectUrl;
+  });
 }
 
 export function CameraCaptureField({
@@ -104,22 +129,6 @@ export function CameraCaptureField({
     setStream(null);
   }
 
-  function setInputFile(file: File) {
-    if (!inputRef.current) return;
-
-    try {
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      inputRef.current.files = transfer.files;
-      inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
-    } catch {
-      // Some mobile browsers do not allow assigning generated files to inputs.
-      // The hidden imageData/cropData field still carries the camera photo.
-    }
-
-    setFileName(file.name);
-  }
-
   async function capturePhoto() {
     const video = videoRef.current;
     if (!video || video.readyState < 2) {
@@ -134,24 +143,10 @@ export function CameraCaptureField({
     canvas.getContext("2d")?.drawImage(video, 0, 0, size.width, size.height);
     const imageData = canvas.toDataURL("image/jpeg", 0.82);
 
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.82),
-    );
-
-    if (!blob) {
-      setError("Foto konnte nicht uebernommen werden.");
-      return;
-    }
-
-    const file = new File([blob], `${name}-${Date.now()}.jpg`, {
-      type: "image/jpeg",
-    });
-    const nextPreviewUrl = URL.createObjectURL(blob);
-
     revokePreview(previewUrl);
-    setPreviewUrl(nextPreviewUrl);
+    setPreviewUrl(imageData);
     setCapturedData(imageData);
-    setInputFile(file);
+    setFileName(`${name}-${Date.now()}.jpg`);
     closeCamera();
   }
 
@@ -159,15 +154,29 @@ export function CameraCaptureField({
     inputRef.current?.click();
   }
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
 
-    revokePreview(previewUrl);
-    setPreviewUrl(URL.createObjectURL(file));
-    setCapturedData("");
-    setFileName(file.name);
     setError(null);
+
+    try {
+      const imageData = await resizeImageFile(file);
+
+      revokePreview(previewUrl);
+      setPreviewUrl(imageData);
+      setCapturedData(imageData);
+      setFileName(`${file.name} - verkleinert`);
+      event.currentTarget.value = "";
+    } catch {
+      setCapturedData("");
+      setFileName(file.name);
+      setError(
+        file.size > 4 * 1024 * 1024
+          ? "Bild ist sehr gross. Bitte Kamera oeffnen nutzen."
+          : "Bild wird unverkleinert gesendet.",
+      );
+    }
   }
 
   return (
