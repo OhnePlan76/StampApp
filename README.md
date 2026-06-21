@@ -29,6 +29,7 @@ OPENAI_API_KEY="sk-..."
 OPENAI_VISION_MODEL="gpt-5.5"
 
 R2_ACCOUNT_ID="cloudflare-account-id"
+R2_ENDPOINT="https://cloudflare-account-id.r2.cloudflarestorage.com"
 R2_BUCKET_NAME="stampapp"
 R2_ACCESS_KEY_ID="r2-access-key-id"
 R2_SECRET_ACCESS_KEY="r2-secret-access-key"
@@ -48,6 +49,7 @@ Die R2-Variablen sind optional. Ohne R2 speichert die App lokal in
    - `OPENAI_API_KEY`
    - optional `OPENAI_VISION_MODEL`
    - `R2_ACCOUNT_ID`
+   - optional `R2_ENDPOINT`
    - `R2_BUCKET_NAME`
    - `R2_ACCESS_KEY_ID`
    - `R2_SECRET_ACCESS_KEY`
@@ -75,6 +77,9 @@ R2-Free-Tier-Planung:
 - `R2_PUBLIC_BASE_URL` nutzt direkte Bildauslieferung, falls der Bucket
   oeffentlich lesbar ist. Ohne Public URL liefert die App Bilder ueber
   `/api/uploads/...` aus.
+- `R2_ENDPOINT` ist optional. Standard ist
+  `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`. Fuer EU-Buckets muss
+  `https://<R2_ACCOUNT_ID>.eu.r2.cloudflarestorage.com` gesetzt werden.
 - Cloudflare R2 Free Tier umfasst aktuell 10 GB-month Storage, 1 Mio. Class-A-
   Operationen und 10 Mio. Class-B-Operationen pro Monat.
 

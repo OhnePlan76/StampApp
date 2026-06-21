@@ -22,16 +22,19 @@ function requiredR2Env() {
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
   const bucket = process.env.R2_BUCKET_NAME;
+  const endpoint =
+    process.env.R2_ENDPOINT?.replace(/\/+$/, "") ||
+    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "");
 
-  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) {
     return null;
   }
 
   return {
-    accountId,
     accessKeyId,
     secretAccessKey,
     bucket,
+    endpoint,
   };
 }
 
@@ -45,7 +48,7 @@ function getR2Client() {
   if (!r2Client) {
     r2Client = new S3Client({
       region: "auto",
-      endpoint: `https://${env.accountId}.r2.cloudflarestorage.com`,
+      endpoint: env.endpoint,
       credentials: {
         accessKeyId: env.accessKeyId,
         secretAccessKey: env.secretAccessKey,
@@ -93,14 +96,24 @@ async function writeImageBytes(
   const r2 = getR2Client();
 
   if (r2) {
-    await r2.client.send(
-      new PutObjectCommand({
-        Bucket: r2.bucket,
-        Key: filename,
-        Body: bytes,
-        ContentType: mimeType,
-      }),
-    );
+    try {
+      await r2.client.send(
+        new PutObjectCommand({
+          Bucket: r2.bucket,
+          Key: filename,
+          Body: bytes,
+          ContentType: mimeType,
+        }),
+      );
+    } catch (error) {
+      console.error("R2 upload failed", {
+        bucket: r2.bucket,
+        filename,
+        message: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new Error("Bild konnte nicht in R2 gespeichert werden.");
+    }
 
     return publicR2UrlForFilename(filename);
   }
@@ -194,10 +207,11 @@ export async function readPublicUpload(imageUrl: string) {
   const r2 = getR2Client();
 
   if (r2 && imageUrl.startsWith(uploadApiPrefix)) {
+    const key = filenameFromUploadUrl(imageUrl);
     const object = await r2.client.send(
       new GetObjectCommand({
         Bucket: r2.bucket,
-        Key: filenameFromUploadUrl(imageUrl),
+        Key: key,
       }),
     );
     const bytes = await object.Body?.transformToByteArray();
