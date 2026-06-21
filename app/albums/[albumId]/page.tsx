@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { uploadPage, uploadStampCrop } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import { StampTable } from "@/components/StampTable";
@@ -106,17 +107,7 @@ export default async function AlbumPage({
               required
             />
           </label>
-          <label className="field">
-            <span>Foto</span>
-            <input
-              className="input"
-              type="file"
-              name="image"
-              accept="image/*"
-              capture="environment"
-              required
-            />
-          </label>
+          <CameraCaptureField name="image" label="Seitenfoto" required />
           <label className="field">
             <span>Aufnahmequalitaet</span>
             <select className="input" name="quality" defaultValue="gut">
@@ -178,17 +169,7 @@ export default async function AlbumPage({
                   <form action={uploadStampCrop} className="stamp-capture-form">
                     <input type="hidden" name="albumId" value={album.id} />
                     <input type="hidden" name="pageId" value={page.id} />
-                    <label className="field">
-                      <span>Einzelmarke fotografieren</span>
-                      <input
-                        className="input"
-                        type="file"
-                        name="crop"
-                        accept="image/*"
-                        capture="environment"
-                        required
-                      />
-                    </label>
+                    <CameraCaptureField name="crop" label="Einzelmarke" required />
                     <label className="field">
                       <span>Position</span>
                       <input

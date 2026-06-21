@@ -168,6 +168,55 @@ select {
   font-size: 0.9rem;
 }
 
+.camera-field {
+  align-self: stretch;
+}
+
+.camera-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.camera-picker,
+.camera-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.camera-live {
+  display: grid;
+  gap: 10px;
+}
+
+.camera-video {
+  width: 100%;
+  max-height: 56vh;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #111827;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.camera-preview {
+  display: grid;
+  gap: 6px;
+}
+
+.camera-preview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
 .input,
 .textarea {
   width: 100%;
@@ -540,6 +589,15 @@ tr:last-child td {
   .secondary-button,
   .input {
     min-height: 44px;
+  }
+
+  .camera-picker,
+  .camera-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-video {
+    max-height: 64vh;
   }
 
   .full-span,
