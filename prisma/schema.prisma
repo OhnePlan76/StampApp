@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Album {
+  id        String   @id @default(cuid())
+  name      String
+  country   String?
+  notes     String?
+  pages     Page[]
+  createdAt DateTime @default(now())
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  albumId   String
+  pageNo    Int
+  imageUrl  String
+  notes     String?
+  quality   String?
+  status    String   @default("offen")
+  stamps    Stamp[]
+  createdAt DateTime @default(now())
+
+  album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  @@unique([albumId, pageNo])
+  @@index([albumId])
+  @@index([status])
+}
+
+model Stamp {
+  id                  String   @id @default(cuid())
+  pageId              String
+  cropUrl             String
+  notes               String?
+  positionHint        String?
+  manualCountryHint   String?
+  manualConditionHint String?
+  status              String   @default("unanalysiert")
+  country             String?
+  era                 String?
+  denomination        String?
+  motive              String?
+  usedState           String?
+  condition           String?
+  catalogHint         String?
+  confidence          Float?
+  valueClass          Int?
+  valueMin            Float?
+  valueMax            Float?
+  needsExpert         Boolean  @default(false)
+  analysisRaw         Json?
+  createdAt           DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([status])
+  @@index([valueClass, needsExpert])
+}
