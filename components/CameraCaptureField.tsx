@@ -15,17 +15,39 @@ function revokePreview(url: string | null) {
   }
 }
 
+function dataFieldNameFor(fileFieldName: string) {
+  if (fileFieldName === "crop") return "cropData";
+  return `${fileFieldName}Data`;
+}
+
+function targetImageSize(width: number, height: number) {
+  const maxEdge = 1600;
+
+  if (width <= maxEdge && height <= maxEdge) {
+    return { width, height };
+  }
+
+  const scale = maxEdge / Math.max(width, height);
+
+  return {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+  };
+}
+
 export function CameraCaptureField({
   name,
   label,
   required = false,
 }: CameraCaptureFieldProps) {
+  const dataFieldName = dataFieldNameFor(name);
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [capturedData, setCapturedData] = useState("");
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -85,10 +107,16 @@ export function CameraCaptureField({
   function setInputFile(file: File) {
     if (!inputRef.current) return;
 
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    inputRef.current.files = transfer.files;
-    inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      inputRef.current.files = transfer.files;
+      inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+    } catch {
+      // Some mobile browsers do not allow assigning generated files to inputs.
+      // The hidden imageData/cropData field still carries the camera photo.
+    }
+
     setFileName(file.name);
   }
 
@@ -100,12 +128,14 @@ export function CameraCaptureField({
     }
 
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const size = targetImageSize(video.videoWidth, video.videoHeight);
+    canvas.width = size.width;
+    canvas.height = size.height;
+    canvas.getContext("2d")?.drawImage(video, 0, 0, size.width, size.height);
+    const imageData = canvas.toDataURL("image/jpeg", 0.82);
 
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.9),
+      canvas.toBlob(resolve, "image/jpeg", 0.82),
     );
 
     if (!blob) {
@@ -120,6 +150,7 @@ export function CameraCaptureField({
 
     revokePreview(previewUrl);
     setPreviewUrl(nextPreviewUrl);
+    setCapturedData(imageData);
     setInputFile(file);
     closeCamera();
   }
@@ -134,6 +165,7 @@ export function CameraCaptureField({
 
     revokePreview(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
+    setCapturedData("");
     setFileName(file.name);
     setError(null);
   }
@@ -148,9 +180,9 @@ export function CameraCaptureField({
         name={name}
         accept="image/*"
         capture="environment"
-        required={required}
         onChange={handleFileChange}
       />
+      <input type="hidden" name={dataFieldName} value={capturedData} />
 
       {stream ? (
         <div className="camera-live">
@@ -184,10 +216,14 @@ export function CameraCaptureField({
       {previewUrl ? (
         <div className="camera-preview">
           <img src={previewUrl} alt={`${label} Vorschau`} />
-          <div className="muted">{fileName || "Foto bereit"}</div>
+          <div className="muted">
+            {fileName || "Foto bereit"} - danach speichern
+          </div>
         </div>
       ) : (
-        <div className="muted">Noch kein Foto gewaehlt.</div>
+        <div className="muted">
+          {required ? "Foto erforderlich." : "Noch kein Foto gewaehlt."}
+        </div>
       )}
       {error ? <div className="inline-error">{error}</div> : null}
     </div>

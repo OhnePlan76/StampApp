@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
-import { uploadPage, uploadStampCrop } from "@/lib/actions";
+import { updateAlbumCover, uploadPage, uploadStampCrop } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import { StampTable } from "@/components/StampTable";
 
@@ -68,8 +68,19 @@ export default async function AlbumPage({
     <>
       <header className="page-title">
         <Link href="/">Zurueck zur Albumuebersicht</Link>
-        <div className="album-heading">
-          <div>
+        <div className="album-heading album-detail-heading">
+          {album.imageUrl ? (
+            <img
+              className="album-cover"
+              src={album.imageUrl}
+              alt={`Albumfoto ${album.name}`}
+            />
+          ) : (
+            <div className="album-cover album-thumb-placeholder">
+              {album.name.slice(0, 2)}
+            </div>
+          )}
+          <div className="album-title-copy">
             <h1>{album.name}</h1>
             <div className="muted">
               {album.country ? `${album.country} - ` : ""}
@@ -86,6 +97,17 @@ export default async function AlbumPage({
           </div>
         </div>
       </header>
+
+      <section className="form-panel album-cover-panel">
+        <h2>Albumfoto</h2>
+        <form action={updateAlbumCover} className="album-cover-form">
+          <input type="hidden" name="albumId" value={album.id} />
+          <CameraCaptureField name="image" label="Albumfoto" />
+          <button className="button" type="submit">
+            Albumfoto speichern
+          </button>
+        </form>
+      </section>
 
       <section className="form-panel capture-panel" id="neue-seite">
         <div className="panel-heading">

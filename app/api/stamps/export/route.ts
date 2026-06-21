@@ -24,6 +24,7 @@ export async function GET() {
   const headers = [
     "stampId",
     "album",
+    "albumImageUrl",
     "pageNo",
     "pageStatus",
     "pageQuality",
@@ -52,6 +53,7 @@ export async function GET() {
   const rows = stamps.map((stamp) => [
     stamp.id,
     stamp.page.album.name,
+    stamp.page.album.imageUrl,
     stamp.page.pageNo,
     stamp.page.status,
     stamp.page.quality,

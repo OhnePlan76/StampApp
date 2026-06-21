@@ -12,6 +12,7 @@ model Album {
   name      String
   country   String?
   notes     String?
+  imageUrl  String?
   pages     Page[]
   createdAt DateTime @default(now())
 }

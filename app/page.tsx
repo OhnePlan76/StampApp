@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { createAlbum } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import { StampTable } from "@/components/StampTable";
@@ -82,6 +83,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <span>Land-Hinweis</span>
               <input className="input" name="country" placeholder="z. B. Deutschland" />
             </label>
+            <CameraCaptureField name="image" label="Albumfoto" />
             <label className="field">
               <span>Notizen</span>
               <textarea className="textarea" name="notes" />
@@ -101,6 +103,17 @@ export default async function Home({ searchParams }: HomeProps) {
               <div className="album-card-list">
                 {albums.map((album) => (
                   <article className="album-card" key={album.id}>
+                    {album.imageUrl ? (
+                      <img
+                        className="album-thumb"
+                        src={album.imageUrl}
+                        alt={`Albumfoto ${album.name}`}
+                      />
+                    ) : (
+                      <div className="album-thumb album-thumb-placeholder">
+                        {album.name.slice(0, 2)}
+                      </div>
+                    )}
                     <div>
                       <h3>
                         <Link href={`/albums/${album.id}`}>{album.name}</Link>
@@ -120,6 +133,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 <table>
                   <thead>
                     <tr>
+                      <th>Bild</th>
                       <th>Name</th>
                       <th>Land-Hinweis</th>
                       <th>Seiten</th>
@@ -130,6 +144,19 @@ export default async function Home({ searchParams }: HomeProps) {
                   <tbody>
                     {albums.map((album) => (
                       <tr key={album.id}>
+                        <td>
+                          {album.imageUrl ? (
+                            <img
+                              className="album-thumb compact-thumb"
+                              src={album.imageUrl}
+                              alt={`Albumfoto ${album.name}`}
+                            />
+                          ) : (
+                            <div className="album-thumb compact-thumb album-thumb-placeholder">
+                              {album.name.slice(0, 2)}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           <Link href={`/albums/${album.id}`}>{album.name}</Link>
                         </td>
