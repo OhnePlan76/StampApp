@@ -14,6 +14,12 @@ const mimeExtensions: Record<string, string> = {
 };
 
 type ImageUploadPrefix = "album" | "page" | "stamp";
+type R2ErrorDetails = {
+  code?: string;
+  message: string;
+  statusCode?: number;
+  requestId?: string;
+};
 
 let r2Client: S3Client | null = null;
 
@@ -49,6 +55,8 @@ function getR2Client() {
     r2Client = new S3Client({
       region: "auto",
       endpoint: env.endpoint,
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: env.accessKeyId,
         secretAccessKey: env.secretAccessKey,
@@ -60,6 +68,57 @@ function getR2Client() {
     bucket: env.bucket,
     client: r2Client,
   };
+}
+
+function r2ErrorDetails(error: unknown): R2ErrorDetails {
+  if (!(error instanceof Error)) {
+    return {
+      message: String(error),
+    };
+  }
+
+  const shapedError = error as Error & {
+    $metadata?: {
+      httpStatusCode?: number;
+      requestId?: string;
+    };
+    Code?: string;
+    code?: string;
+  };
+
+  return {
+    code: shapedError.Code || shapedError.code || shapedError.name,
+    message: shapedError.message,
+    requestId: shapedError.$metadata?.requestId,
+    statusCode: shapedError.$metadata?.httpStatusCode,
+  };
+}
+
+function r2UploadMessage(details: R2ErrorDetails) {
+  const code = details.code || "";
+  const message = details.message || "";
+
+  if (details.statusCode === 403 || /access|forbidden|signature/i.test(code)) {
+    return "R2-Zugriff verweigert. Bitte R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY und die Bucket-Rechte pruefen.";
+  }
+
+  if (details.statusCode === 404 || /nosuchbucket|notfound/i.test(code)) {
+    return "R2-Bucket nicht gefunden. Bitte R2_BUCKET_NAME und R2_ACCOUNT_ID/R2_ENDPOINT pruefen.";
+  }
+
+  if (/enotfound|getaddrinfo|econnrefused|etimedout|network|fetch failed/i.test(message)) {
+    return "R2-Endpunkt nicht erreichbar. Bitte R2_ENDPOINT oder R2_ACCOUNT_ID pruefen.";
+  }
+
+  if (details.statusCode === 413 || /entitytoolarge|too large|request body/i.test(message)) {
+    return "Bild ist fuer den Upload zu gross. Bitte kleiner fotografieren oder erneut versuchen.";
+  }
+
+  const detail = [details.statusCode, code].filter(Boolean).join(" ");
+
+  return detail
+    ? `R2-Upload fehlgeschlagen (${detail}).`
+    : "Bild konnte nicht in R2 gespeichert werden.";
 }
 
 function publicR2UrlForFilename(filename: string) {
@@ -103,16 +162,23 @@ async function writeImageBytes(
           Key: filename,
           Body: bytes,
           ContentType: mimeType,
+          ContentLength: bytes.length,
         }),
       );
     } catch (error) {
+      const details = r2ErrorDetails(error);
+
       console.error("R2 upload failed", {
         bucket: r2.bucket,
+        code: details.code,
         filename,
-        message: error instanceof Error ? error.message : String(error),
+        message: details.message,
+        requestId: details.requestId,
+        size: bytes.length,
+        statusCode: details.statusCode,
       });
 
-      throw new Error("Bild konnte nicht in R2 gespeichert werden.");
+      throw new Error(r2UploadMessage(details));
     }
 
     return publicR2UrlForFilename(filename);
