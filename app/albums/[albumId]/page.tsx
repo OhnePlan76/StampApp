@@ -170,7 +170,7 @@ export default async function AlbumPage({
         ) : (
           <div className="page-list">
             {album.pages.map((page) => (
-              <article className="page-row" key={page.id}>
+              <article className="page-row" id={`seite-${page.id}`} key={page.id}>
                 <a
                   className="page-image-link"
                   href={page.imageUrl}
