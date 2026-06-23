@@ -79,11 +79,11 @@ export function AppChrome() {
           <HomeIcon />
           <span>Home</span>
         </Link>
-        <Link className={inAlbum ? "active" : ""} href="/#bearbeiten">
+        <Link className={inAlbum ? "active" : ""} href="/?view=albums">
           <FolderIcon />
           <span>Sammlung</span>
         </Link>
-        <Link href="/#album-anlegen">
+        <Link href="/?view=create">
           <CameraIcon />
           <span>Erfassen</span>
         </Link>

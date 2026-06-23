@@ -1,15 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
-import { updateAlbumCover, uploadPage, uploadStampCrop } from "@/lib/actions";
+import {
+  updateAlbum,
+  updateAlbumCover,
+  updatePage,
+  updateStamp,
+  uploadPage,
+  uploadStampCrop,
+} from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 import { StampTable } from "@/components/StampTable";
+
+type AlbumView = "summary" | "capture" | "pages" | "stamps" | "edit";
 
 type AlbumPageProps = {
   params: Promise<{ albumId: string }> | { albumId: string };
   searchParams?:
-    | Promise<{ actionError?: string; filter?: string }>
-    | { actionError?: string; filter?: string };
+    | Promise<{ actionError?: string; filter?: string; view?: string }>
+    | { actionError?: string; filter?: string; view?: string };
 };
 
 function pageStatusLabel(status: string) {
@@ -21,6 +30,19 @@ function pageStatusLabel(status: string) {
   };
 
   return labels[status] || status;
+}
+
+function albumView(value: string | undefined): AlbumView {
+  if (
+    value === "capture" ||
+    value === "pages" ||
+    value === "stamps" ||
+    value === "edit"
+  ) {
+    return value;
+  }
+
+  return "summary";
 }
 
 function CameraGlyph() {
@@ -45,6 +67,7 @@ export default async function AlbumPage({
 }: AlbumPageProps) {
   const { albumId } = await params;
   const query = searchParams ? await searchParams : {};
+  const activeView = albumView(query.view);
   const expertOnly = query.filter === "expert";
   const actionError = query.actionError;
 
@@ -79,6 +102,12 @@ export default async function AlbumPage({
       expertOnly ? (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert : true,
     );
   const allStamps = album.pages.flatMap((page) => page.stamps);
+  const stampEditors = album.pages.flatMap((page) =>
+    page.stamps.map((stamp) => ({
+      ...stamp,
+      pageNo: page.pageNo,
+    })),
+  );
   const expertStampCount = allStamps.filter(
     (stamp) => (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert,
   ).length;
@@ -113,12 +142,12 @@ export default async function AlbumPage({
           </div>
         </div>
         <div className="album-hero-actions">
-          <a className="button" href="#neue-seite">
+          <Link className="button" href={`/albums/${album.id}?view=capture`}>
             Seite fotografieren
-          </a>
-          <a className="secondary-button" href="/api/stamps/export">
-            CSV exportieren
-          </a>
+          </Link>
+          <Link className="secondary-button" href={`/albums/${album.id}?view=edit`}>
+            Bearbeiten
+          </Link>
         </div>
       </header>
 
@@ -128,6 +157,66 @@ export default async function AlbumPage({
         </div>
       ) : null}
 
+      <nav className="screen-tabs" aria-label="Albumansichten">
+        <Link className={activeView === "summary" ? "active" : ""} href={`/albums/${album.id}`}>
+          Uebersicht
+        </Link>
+        <Link
+          className={activeView === "capture" ? "active" : ""}
+          href={`/albums/${album.id}?view=capture`}
+        >
+          Erfassen
+        </Link>
+        <Link
+          className={activeView === "pages" ? "active" : ""}
+          href={`/albums/${album.id}?view=pages`}
+        >
+          Seiten
+        </Link>
+        <Link
+          className={activeView === "stamps" ? "active" : ""}
+          href={`/albums/${album.id}?view=stamps`}
+        >
+          Marken
+        </Link>
+        <Link
+          className={activeView === "edit" ? "active" : ""}
+          href={`/albums/${album.id}?view=edit`}
+        >
+          Edit
+        </Link>
+      </nav>
+
+      {activeView === "summary" ? (
+        <section className="screen-panel overview-screen">
+          <div className="quick-switch-grid">
+            <Link className="action-tile compact-tile" href={`/albums/${album.id}?view=capture`}>
+              <span>Erfassen</span>
+              <strong>naechste Seite {nextPageNo}</strong>
+            </Link>
+            <Link
+              className="action-tile compact-tile action-tile-warm"
+              href={`/albums/${album.id}?view=pages`}
+            >
+              <span>Seiten</span>
+              <strong>{album.pages.length} erfasst</strong>
+            </Link>
+            <Link className="action-tile compact-tile" href={`/albums/${album.id}?view=stamps`}>
+              <span>Marken</span>
+              <strong>{allStamps.length} gesamt</strong>
+            </Link>
+            <Link
+              className="action-tile compact-tile action-tile-warm"
+              href={`/albums/${album.id}?view=edit`}
+            >
+              <span>Edit</span>
+              <strong>Daten pflegen</strong>
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {activeView === "edit" ? (
       <section className="form-panel album-cover-panel" id="albumfoto">
         <div className="section-heading app-section-heading">
           <div>
@@ -153,7 +242,292 @@ export default async function AlbumPage({
           </button>
         </form>
       </section>
+      ) : null}
 
+      {activeView === "edit" ? (
+        <section className="screen-panel edit-screen">
+          <section className="form-panel" id="albumdaten">
+            <div className="section-heading app-section-heading">
+              <div>
+                <h2>Albumdaten</h2>
+                <div className="muted">Titel, Region und Notizen bearbeiten.</div>
+              </div>
+            </div>
+            <form action={updateAlbum} className="form-grid">
+              <input type="hidden" name="albumId" value={album.id} />
+              <label className="field">
+                <span>Albumtitel</span>
+                <input
+                  className="input"
+                  name="name"
+                  defaultValue={album.name}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Land / Region</span>
+                <input
+                  className="input"
+                  name="country"
+                  defaultValue={album.country ?? ""}
+                />
+              </label>
+              <label className="field">
+                <span>Notizen</span>
+                <textarea
+                  className="textarea compact-textarea"
+                  name="notes"
+                  defaultValue={album.notes ?? ""}
+                />
+              </label>
+              <button className="button save-button" type="submit">
+                Albumdaten speichern
+              </button>
+            </form>
+          </section>
+
+          <section className="form-panel" id="seiten-bearbeiten">
+            <div className="section-heading app-section-heading">
+              <div>
+                <h2>Seiten bearbeiten</h2>
+                <div className="muted">Nummer, Status, Qualitaet und Notiz.</div>
+              </div>
+            </div>
+            {album.pages.length === 0 ? (
+              <p className="empty-state">Noch keine Seiten vorhanden.</p>
+            ) : (
+              <div className="editor-stack">
+                {album.pages.map((page) => (
+                  <details className="inline-editor" key={page.id}>
+                    <summary>
+                      <span>Seite {page.pageNo}</span>
+                      <small>{pageStatusLabel(page.status)}</small>
+                    </summary>
+                    <form action={updatePage} className="edit-grid">
+                      <input type="hidden" name="albumId" value={album.id} />
+                      <input type="hidden" name="pageId" value={page.id} />
+                      <label className="field">
+                        <span>Seitennummer</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="1"
+                          name="pageNo"
+                          defaultValue={page.pageNo}
+                          required
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Status</span>
+                        <select className="input" name="status" defaultValue={page.status}>
+                          <option value="offen">Offen</option>
+                          <option value="teilweise_erfasst">Teilweise erfasst</option>
+                          <option value="fertig">Fertig</option>
+                          <option value="nachfotografieren">Nachfotografieren</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Qualitaet</span>
+                        <select
+                          className="input"
+                          name="quality"
+                          defaultValue={page.quality ?? ""}
+                        >
+                          <option value="">Keine Angabe</option>
+                          <option value="gut">gut</option>
+                          <option value="schief">schief</option>
+                          <option value="unscharf">unscharf</option>
+                          <option value="nachfotografieren">nachfotografieren</option>
+                          <option value="unbekannt">unbekannt</option>
+                        </select>
+                      </label>
+                      <label className="field full-span">
+                        <span>Seitennotiz</span>
+                        <textarea
+                          className="textarea compact-textarea"
+                          name="notes"
+                          defaultValue={page.notes ?? ""}
+                        />
+                      </label>
+                      <button className="button submit-row" type="submit">
+                        Seite speichern
+                      </button>
+                    </form>
+                  </details>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="form-panel" id="marken-bearbeiten">
+            <div className="section-heading app-section-heading">
+              <div>
+                <h2>Marken bearbeiten</h2>
+                <div className="muted">Hinweise, Analysefelder und Wertdaten pflegen.</div>
+              </div>
+            </div>
+            {stampEditors.length === 0 ? (
+              <p className="empty-state">Noch keine Marken vorhanden.</p>
+            ) : (
+              <div className="editor-stack">
+                {stampEditors.map((stamp) => (
+                  <details className="inline-editor stamp-editor" key={stamp.id}>
+                    <summary>
+                      <img src={stamp.cropUrl} alt="Briefmarken-Crop" />
+                      <span>
+                        {stamp.manualCountryHint ||
+                          stamp.country ||
+                          stamp.positionHint ||
+                          "Marke"}
+                      </span>
+                      <small>Seite {stamp.pageNo}</small>
+                    </summary>
+                    <form action={updateStamp} className="edit-grid stamp-edit-grid">
+                      <input type="hidden" name="albumId" value={album.id} />
+                      <input type="hidden" name="stampId" value={stamp.id} />
+                      <label className="field">
+                        <span>Status</span>
+                        <select className="input" name="status" defaultValue={stamp.status}>
+                          <option value="unanalysiert">Unanalysiert</option>
+                          <option value="analysiert">Analysiert</option>
+                          <option value="pruefbedarf">Pruefbedarf</option>
+                          <option value="fehler">Fehler</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Position</span>
+                        <input
+                          className="input"
+                          name="positionHint"
+                          defaultValue={stamp.positionHint ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Land-Hinweis</span>
+                        <input
+                          className="input"
+                          name="manualCountryHint"
+                          defaultValue={stamp.manualCountryHint ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Zustand-Hinweis</span>
+                        <input
+                          className="input"
+                          name="manualConditionHint"
+                          defaultValue={stamp.manualConditionHint ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Land</span>
+                        <input
+                          className="input"
+                          name="country"
+                          defaultValue={stamp.country ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Epoche</span>
+                        <input className="input" name="era" defaultValue={stamp.era ?? ""} />
+                      </label>
+                      <label className="field">
+                        <span>Nennwert</span>
+                        <input
+                          className="input"
+                          name="denomination"
+                          defaultValue={stamp.denomination ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Motiv</span>
+                        <input
+                          className="input"
+                          name="motive"
+                          defaultValue={stamp.motive ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Verwendung</span>
+                        <input
+                          className="input"
+                          name="usedState"
+                          defaultValue={stamp.usedState ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Zustand</span>
+                        <input
+                          className="input"
+                          name="condition"
+                          defaultValue={stamp.condition ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Wertklasse</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="1"
+                          max="5"
+                          name="valueClass"
+                          defaultValue={stamp.valueClass ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Wert min</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          name="valueMin"
+                          defaultValue={stamp.valueMin ?? ""}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Wert max</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          name="valueMax"
+                          defaultValue={stamp.valueMax ?? ""}
+                        />
+                      </label>
+                      <label className="check-field">
+                        <input
+                          type="checkbox"
+                          name="needsExpert"
+                          defaultChecked={stamp.needsExpert}
+                        />
+                        <span>Pruefbedarf</span>
+                      </label>
+                      <label className="field full-span">
+                        <span>Kataloghinweis</span>
+                        <textarea
+                          className="textarea compact-textarea"
+                          name="catalogHint"
+                          defaultValue={stamp.catalogHint ?? ""}
+                        />
+                      </label>
+                      <label className="field full-span">
+                        <span>Notiz</span>
+                        <textarea
+                          className="textarea compact-textarea"
+                          name="notes"
+                          defaultValue={stamp.notes ?? ""}
+                        />
+                      </label>
+                      <button className="button submit-row" type="submit">
+                        Marke speichern
+                      </button>
+                    </form>
+                  </details>
+                ))}
+              </div>
+            )}
+          </section>
+        </section>
+      ) : null}
+
+      {activeView === "capture" ? (
       <section className="capture-callout" id="neue-seite">
         <div className="capture-callout-top">
           <span className="primary-action-icon">
@@ -202,7 +576,9 @@ export default async function AlbumPage({
           </button>
         </form>
       </section>
+      ) : null}
 
+      {activeView === "pages" ? (
       <section className="section page-section" id="seitenliste">
         <div className="section-heading app-section-heading">
           <div>
@@ -242,6 +618,11 @@ export default async function AlbumPage({
                     {page.quality ? <span>Qualitaet: {page.quality}</span> : null}
                     {page.notes ? <span>Notiz: {page.notes}</span> : null}
                   </div>
+                  <details className="inline-editor crop-editor">
+                    <summary>
+                      <span>Einzelmarke hinzufuegen</span>
+                      <small>Seite {page.pageNo}</small>
+                    </summary>
                   <form action={uploadStampCrop} className="stamp-capture-form">
                     <input type="hidden" name="albumId" value={album.id} />
                     <input type="hidden" name="pageId" value={page.id} />
@@ -282,13 +663,16 @@ export default async function AlbumPage({
                       Marke speichern
                     </button>
                   </form>
+                  </details>
                 </div>
               </article>
             ))}
           </div>
         )}
       </section>
+      ) : null}
 
+      {activeView === "stamps" ? (
       <section className="section stamp-section">
         <div className="topbar">
           <div>
@@ -304,8 +688,8 @@ export default async function AlbumPage({
               className={`secondary-button ${expertOnly ? "active" : ""}`}
               href={
                 expertOnly
-                  ? `/albums/${album.id}`
-                  : `/albums/${album.id}?filter=expert`
+                  ? `/albums/${album.id}?view=stamps`
+                  : `/albums/${album.id}?view=stamps&filter=expert`
               }
             >
               Wertklasse &gt;= 4 + Pruefbedarf
@@ -317,6 +701,7 @@ export default async function AlbumPage({
         </div>
         <StampTable stamps={stamps} />
       </section>
+      ) : null}
     </>
   );
 }
