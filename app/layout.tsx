@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppChrome } from "@/components/AppChrome";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="de">
       <body>
+        <AppChrome />
         <main className="app-shell">{children}</main>
       </body>
     </html>

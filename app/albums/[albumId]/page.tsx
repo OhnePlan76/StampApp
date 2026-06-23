@@ -23,6 +23,22 @@ function pageStatusLabel(status: string) {
   return labels[status] || status;
 }
 
+function CameraGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="tile-icon">
+      <path d="M8.5 5 10 3h4l1.5 2H19a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h3.5ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+    </svg>
+  );
+}
+
+function ArrowGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="arrow-icon">
+      <path d="M13.3 5.3a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 1 1-1.4-1.4L17.6 13H4a1 1 0 1 1 0-2h13.6l-4.3-4.3a1 1 0 0 1 0-1.4Z" />
+    </svg>
+  );
+}
+
 export default async function AlbumPage({
   params,
   searchParams,
@@ -62,6 +78,10 @@ export default async function AlbumPage({
     .filter((stamp) =>
       expertOnly ? (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert : true,
     );
+  const allStamps = album.pages.flatMap((page) => page.stamps);
+  const expertStampCount = allStamps.filter(
+    (stamp) => (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert,
+  ).length;
   const nextPageNo =
     album.pages.length === 0
       ? 1
@@ -69,35 +89,36 @@ export default async function AlbumPage({
 
   return (
     <>
-      <header className="page-title">
-        <Link href="/">Zurueck zur Albumuebersicht</Link>
-        <div className="album-heading album-detail-heading">
-          {album.imageUrl ? (
-            <img
-              className="album-cover"
-              src={album.imageUrl}
-              alt={`Albumfoto ${album.name}`}
-            />
-          ) : (
-            <div className="album-cover album-thumb-placeholder">
-              {album.name.slice(0, 2)}
-            </div>
-          )}
-          <div className="album-title-copy">
-            <h1>{album.name}</h1>
-            <div className="muted">
-              {album.country ? `${album.country} - ` : ""}
-              {album.notes || "Keine Notizen"}
-            </div>
+      <header className="album-hero">
+        <Link className="back-link" href="/">
+          Zurueck zur Sammlung
+        </Link>
+        <div className="album-hero-copy">
+          <p>{album.country || "Album"}</p>
+          <h1>{album.name}</h1>
+          <span>{album.notes || "Seiten fotografieren und Marken einzeln erfassen."}</span>
+        </div>
+        <div className="album-hero-stats">
+          <div>
+            <strong>{album.pages.length}</strong>
+            <span>Seiten</span>
           </div>
-          <div className="toolbar">
-            <a className="button" href="#neue-seite">
-              Seite fotografieren
-            </a>
-            <a className="secondary-button" href="/api/stamps/export">
-              CSV exportieren
-            </a>
+          <div>
+            <strong>{allStamps.length}</strong>
+            <span>Marken</span>
           </div>
+          <div>
+            <strong>{expertStampCount}</strong>
+            <span>Pruefen</span>
+          </div>
+        </div>
+        <div className="album-hero-actions">
+          <a className="button" href="#neue-seite">
+            Seite fotografieren
+          </a>
+          <a className="secondary-button" href="/api/stamps/export">
+            CSV exportieren
+          </a>
         </div>
       </header>
 
@@ -108,24 +129,43 @@ export default async function AlbumPage({
       ) : null}
 
       <section className="form-panel album-cover-panel" id="albumfoto">
-        <h2>Albumfoto</h2>
-        <form action={updateAlbumCover} className="album-cover-form">
+        <div className="section-heading app-section-heading">
+          <div>
+            <h2>Albumfoto</h2>
+            <div className="muted">Cover aktualisieren oder nachtraeglich aufnehmen.</div>
+          </div>
+        </div>
+        <form action={updateAlbumCover} className="form-grid">
           <input type="hidden" name="albumId" value={album.id} />
+          {album.imageUrl ? (
+            <a
+              className="album-cover-preview"
+              href={album.imageUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img src={album.imageUrl} alt={`Albumfoto ${album.name}`} />
+            </a>
+          ) : null}
           <CameraCaptureField name="image" label="Albumfoto" />
-          <button className="button" type="submit">
+          <button className="button save-button" type="submit">
             Albumfoto speichern
           </button>
         </form>
       </section>
 
-      <section className="form-panel capture-panel" id="neue-seite">
-        <div className="panel-heading">
+      <section className="capture-callout" id="neue-seite">
+        <div className="capture-callout-top">
+          <span className="primary-action-icon">
+            <CameraGlyph />
+          </span>
           <div>
             <h2>Albumseite erfassen</h2>
-            <div className="muted">Foto aufnehmen, kurze Notiz dazu, speichern.</div>
+            <p>Foto aufnehmen - Seite beschreiben - Marken spaeter zuschneiden</p>
           </div>
+          <ArrowGlyph />
         </div>
-        <form action={uploadPage} className="capture-form">
+        <form action={uploadPage} className="capture-form album-capture-form">
           <input type="hidden" name="albumId" value={album.id} />
           <label className="field">
             <span>Seitennummer</span>
@@ -138,7 +178,7 @@ export default async function AlbumPage({
               required
             />
           </label>
-          <CameraCaptureField name="image" label="Seitenfoto" required />
+          <CameraCaptureField name="image" label="Foto" required />
           <label className="field">
             <span>Aufnahmequalitaet</span>
             <select className="input" name="quality" defaultValue="gut">
@@ -163,8 +203,13 @@ export default async function AlbumPage({
         </form>
       </section>
 
-      <section className="section" id="seitenliste">
-        <h2>Seitenliste</h2>
+      <section className="section page-section" id="seitenliste">
+        <div className="section-heading app-section-heading">
+          <div>
+            <h2>Seitenliste</h2>
+            <div className="muted">Scans, Qualitaet und Einzelmarken.</div>
+          </div>
+        </div>
         {album.pages.length === 0 ? (
           <p className="empty-state">Noch keine Seiten hochgeladen.</p>
         ) : (
@@ -244,7 +289,7 @@ export default async function AlbumPage({
         )}
       </section>
 
-      <section className="section">
+      <section className="section stamp-section">
         <div className="topbar">
           <div>
             <h2>Marken in diesem Album</h2>
