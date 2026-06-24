@@ -221,18 +221,6 @@ export default async function Home({ searchParams }: HomeProps) {
           </h1>
           <span>Album fotografieren, Seiten scannen, spaeter am PC sichten.</span>
         </div>
-        {activeView === "overview" ? (
-          <div className="hero-next-action" aria-label="Naechster Schritt">
-            <span>Naechster Schritt</span>
-            {latestAlbum ? (
-              <Link href={`/alben/${latestAlbum.id}/scannen`}>
-                Seiten in {latestAlbum.name} scannen
-              </Link>
-            ) : (
-              <Link href="/fotografieren">Album fotografieren</Link>
-            )}
-          </div>
-        ) : null}
       </header>
 
       {actionError ? (
@@ -261,13 +249,22 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {activeView === "overview" ? (
       <section className="screen-panel overview-screen">
-      <Link className="primary-action-card" href="/fotografieren">
+      <Link
+        className="primary-action-card"
+        href={latestAlbum ? `/alben/${latestAlbum.id}/scannen` : "/fotografieren"}
+      >
         <span className="primary-action-icon">
           <CameraGlyph />
         </span>
         <span className="primary-action-copy">
-          <strong>Neues Album fotografieren</strong>
-          <small>Albumfoto aufnehmen - danach Seiten scannen</small>
+          <strong>
+            {latestAlbum ? `Seiten in ${latestAlbum.name} scannen` : "Neues Album fotografieren"}
+          </strong>
+          <small>
+            {latestAlbum
+              ? "Scanner starten - Seiten speichern - fortfahren"
+              : "Albumfoto aufnehmen - danach Seiten scannen"}
+          </small>
         </span>
         <ArrowGlyph />
       </Link>
@@ -286,16 +283,6 @@ export default async function Home({ searchParams }: HomeProps) {
           <span>Pruefen</span>
         </div>
       </section>
-      <div className="quick-switch-grid">
-        <Link className="action-tile compact-tile" href="/sammlung">
-          <span>Sammlung</span>
-          <strong>{albums.length} zuletzt</strong>
-        </Link>
-        <Link className="action-tile compact-tile action-tile-warm" href="/aktivitaet">
-          <span>Aktivitaet</span>
-          <strong>{recentItems.length} Eintraege</strong>
-        </Link>
-      </div>
       </section>
       ) : null}
 

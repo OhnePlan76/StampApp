@@ -232,40 +232,6 @@ img {
   line-height: 1.45;
 }
 
-.hero-next-action {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-  margin-top: 18px;
-  border-radius: 8px;
-  background: rgba(15, 27, 61, 0.52);
-  padding: 14px;
-}
-
-.hero-next-action span {
-  color: #b6c6dc;
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.hero-next-action a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--navy-950);
-  padding: 10px 12px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.hero-next-action a:hover {
-  text-decoration: none;
-}
-
 .primary-action-card {
   position: relative;
   display: grid;
