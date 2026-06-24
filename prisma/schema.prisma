@@ -13,8 +13,11 @@ model Album {
   country   String?
   notes     String?
   imageUrl  String?
+  status    String   @default("erfassung")
   pages     Page[]
   createdAt DateTime @default(now())
+
+  @@index([status])
 }
 
 model Page {
@@ -25,6 +28,10 @@ model Page {
   notes     String?
   quality   String?
   status    String   @default("offen")
+  analysisStatus String @default("wartet")
+  analysisNotes  String?
+  detectedRegions Json?
+  analysisRaw     Json?
   stamps    Stamp[]
   createdAt DateTime @default(now())
 
@@ -33,6 +40,7 @@ model Page {
   @@unique([albumId, pageNo])
   @@index([albumId])
   @@index([status])
+  @@index([analysisStatus])
 }
 
 model Stamp {

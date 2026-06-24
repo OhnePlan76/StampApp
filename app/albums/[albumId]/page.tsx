@@ -32,6 +32,29 @@ function pageStatusLabel(status: string) {
   return labels[status] || status;
 }
 
+function albumStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    erfassung: "Erfassung",
+    auswertung: "Auswertung",
+    sichtung: "Sichtung",
+    fertig: "Fertig",
+  };
+
+  return labels[status] || labels.erfassung;
+}
+
+function pageAnalysisStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    wartet: "Wartet auf Auswertung",
+    laeuft: "Auswertung laeuft",
+    sichtung: "Sichtung erforderlich",
+    fertig: "Auswertung fertig",
+    fehler: "Auswertung fehlgeschlagen",
+  };
+
+  return labels[status] || status;
+}
+
 function albumView(value: string | undefined): AlbumView {
   if (
     value === "capture" ||
@@ -111,10 +134,46 @@ export default async function AlbumPage({
   const expertStampCount = allStamps.filter(
     (stamp) => (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert,
   ).length;
+  const rephotoPageCount = album.pages.filter(
+    (page) => page.status === "nachfotografieren" || page.quality === "nachfotografieren",
+  ).length;
+  const openPageCount = album.pages.filter((page) => page.status === "offen").length;
+  const donePageCount = album.pages.filter((page) => page.status === "fertig").length;
+  const queuedAnalysisCount = album.pages.filter(
+    (page) => page.analysisStatus === "wartet" || page.analysisStatus === "laeuft",
+  ).length;
+  const reviewPageCount = album.pages.filter(
+    (page) =>
+      page.analysisStatus === "sichtung" ||
+      page.status === "teilweise_erfasst" ||
+      page.status === "nachfotografieren",
+  ).length;
   const nextPageNo =
     album.pages.length === 0
       ? 1
       : Math.max(...album.pages.map((page) => page.pageNo)) + 1;
+  const reviewQueue = [
+    {
+      href: `/albums/${album.id}?view=capture`,
+      title: "Naechste Seite scannen",
+      meta: `Seite ${nextPageNo}`,
+    },
+    {
+      href: `/albums/${album.id}?view=pages`,
+      title: "Hintergrundauswertung",
+      meta: `${queuedAnalysisCount} Seiten`,
+    },
+    {
+      href: `/albums/${album.id}?view=pages`,
+      title: "PC-Sichtung",
+      meta: `${reviewPageCount} Vermerke`,
+    },
+    {
+      href: `/albums/${album.id}?view=pages`,
+      title: "Nachfotografieren",
+      meta: `${rephotoPageCount} Seiten`,
+    },
+  ];
 
   return (
     <>
@@ -125,7 +184,7 @@ export default async function AlbumPage({
         <div className="album-hero-copy">
           <p>{album.country || "Album"}</p>
           <h1>{album.name}</h1>
-          <span>{album.notes || "Seiten fotografieren und Marken einzeln erfassen."}</span>
+          <span>{album.notes || "Seiten mobil archivieren, Auswertung nachgelagert, Sichtung am PC."}</span>
         </div>
         <div className="album-hero-stats">
           <div>
@@ -133,12 +192,12 @@ export default async function AlbumPage({
             <span>Seiten</span>
           </div>
           <div>
-            <strong>{allStamps.length}</strong>
-            <span>Marken</span>
+            <strong>{albumStatusLabel(album.status)}</strong>
+            <span>Status</span>
           </div>
           <div>
-            <strong>{expertStampCount}</strong>
-            <span>Pruefen</span>
+            <strong>{reviewPageCount}</strong>
+            <span>Sichtung</span>
           </div>
         </div>
         <div className="album-hero-actions">
@@ -177,13 +236,13 @@ export default async function AlbumPage({
           className={activeView === "stamps" ? "active" : ""}
           href={`/albums/${album.id}?view=stamps`}
         >
-          Marken
+          Pruefung
         </Link>
         <Link
           className={activeView === "edit" ? "active" : ""}
           href={`/albums/${album.id}?view=edit`}
         >
-          Edit
+          Daten
         </Link>
       </nav>
 
@@ -202,17 +261,35 @@ export default async function AlbumPage({
               <strong>{album.pages.length} erfasst</strong>
             </Link>
             <Link className="action-tile compact-tile" href={`/albums/${album.id}?view=stamps`}>
-              <span>Marken</span>
-              <strong>{allStamps.length} gesamt</strong>
+              <span>Review</span>
+              <strong>{reviewPageCount} Vermerke</strong>
             </Link>
             <Link
               className="action-tile compact-tile action-tile-warm"
               href={`/albums/${album.id}?view=edit`}
             >
-              <span>Edit</span>
-              <strong>Daten pflegen</strong>
+              <span>Archiv</span>
+              <strong>{donePageCount} Seiten fertig</strong>
             </Link>
           </div>
+          <section className="form-panel">
+            <div className="section-heading app-section-heading">
+              <div>
+                <h2>Arbeitsqueue</h2>
+                <div className="muted">Mobile Erfassung zuerst, Auswertung und Sichtung danach.</div>
+              </div>
+            </div>
+            <div className="compact-list">
+              {reviewQueue.map((item) => (
+                <Link className="compact-row" href={item.href} key={item.title}>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.meta}</small>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
         </section>
       ) : null}
 
@@ -273,6 +350,15 @@ export default async function AlbumPage({
                 />
               </label>
               <label className="field">
+                <span>Albumstatus</span>
+                <select className="input" name="status" defaultValue={album.status}>
+                  <option value="erfassung">Erfassung</option>
+                  <option value="auswertung">Auswertung</option>
+                  <option value="sichtung">Sichtung</option>
+                  <option value="fertig">Fertig</option>
+                </select>
+              </label>
+              <label className="field">
                 <span>Notizen</span>
                 <textarea
                   className="textarea compact-textarea"
@@ -290,7 +376,7 @@ export default async function AlbumPage({
             <div className="section-heading app-section-heading">
               <div>
                 <h2>Seiten bearbeiten</h2>
-                <div className="muted">Nummer, Status, Qualitaet und Notiz.</div>
+                <div className="muted">Nummer, Status, Qualitaet, Auswertung und Notiz.</div>
               </div>
             </div>
             {album.pages.length === 0 ? (
@@ -341,6 +427,14 @@ export default async function AlbumPage({
                           <option value="unbekannt">unbekannt</option>
                         </select>
                       </label>
+                      <label className="field">
+                        <span>Auswertung</span>
+                        <input
+                          className="input"
+                          value={pageAnalysisStatusLabel(page.analysisStatus)}
+                          readOnly
+                        />
+                      </label>
                       <label className="field full-span">
                         <span>Seitennotiz</span>
                         <textarea
@@ -362,12 +456,12 @@ export default async function AlbumPage({
           <section className="form-panel" id="marken-bearbeiten">
             <div className="section-heading app-section-heading">
               <div>
-                <h2>Marken bearbeiten</h2>
-                <div className="muted">Hinweise, Analysefelder und Wertdaten pflegen.</div>
+                <h2>Einzelpruefungen bearbeiten</h2>
+                <div className="muted">Ausnahmen, Hinweise und Wertdaten pflegen.</div>
               </div>
             </div>
             {stampEditors.length === 0 ? (
-              <p className="empty-state">Noch keine Marken vorhanden.</p>
+              <p className="empty-state">Noch keine Einzelpruefungen vorhanden.</p>
             ) : (
               <div className="editor-stack">
                 {stampEditors.map((stamp) => (
@@ -535,7 +629,7 @@ export default async function AlbumPage({
           </span>
           <div>
             <h2>Albumseite erfassen</h2>
-            <p>Foto aufnehmen - Seite beschreiben - Marken spaeter zuschneiden</p>
+            <p>Foto aufnehmen - archivieren - naechste Seite scannen</p>
           </div>
           <ArrowGlyph />
         </div>
@@ -583,7 +677,7 @@ export default async function AlbumPage({
         <div className="section-heading app-section-heading">
           <div>
             <h2>Seitenliste</h2>
-            <div className="muted">Scans, Qualitaet und Einzelmarken.</div>
+            <div className="muted">Archivierte Seiten, Auswertungsstatus und Nachbearbeitungsvermerke.</div>
           </div>
         </div>
         {album.pages.length === 0 ? (
@@ -608,7 +702,9 @@ export default async function AlbumPage({
                   <div className="page-row-header">
                     <div>
                       <h3>Seite {page.pageNo}</h3>
-                      <div className="muted">{page.stamps.length} Marken-Crops</div>
+                      <div className="muted">
+                        {pageAnalysisStatusLabel(page.analysisStatus)}
+                      </div>
                     </div>
                     <span className={`status-badge status-${page.status}`}>
                       {pageStatusLabel(page.status)}
@@ -616,12 +712,14 @@ export default async function AlbumPage({
                   </div>
                   <div className="meta-strip">
                     {page.quality ? <span>Qualitaet: {page.quality}</span> : null}
+                    <span>Auswertung: {pageAnalysisStatusLabel(page.analysisStatus)}</span>
+                    {page.analysisNotes ? <span>Vermerk: {page.analysisNotes}</span> : null}
                     {page.notes ? <span>Notiz: {page.notes}</span> : null}
                   </div>
                   <details className="inline-editor crop-editor">
                     <summary>
-                      <span>Einzelmarke hinzufuegen</span>
-                      <small>Seite {page.pageNo}</small>
+                      <span>Ausnahme: Einzelmarke pruefen</span>
+                      <small>bei KI-Hinweis oder Nutzerwunsch</small>
                     </summary>
                   <form action={uploadStampCrop} className="stamp-capture-form">
                     <input type="hidden" name="albumId" value={album.id} />
@@ -652,7 +750,7 @@ export default async function AlbumPage({
                       />
                     </label>
                     <label className="field full-span">
-                      <span>Markennotiz</span>
+                      <span>Pruefnotiz</span>
                       <textarea
                         className="textarea compact-textarea"
                         name="notes"
@@ -660,7 +758,7 @@ export default async function AlbumPage({
                       />
                     </label>
                     <button className="button" type="submit">
-                      Marke speichern
+                      Einzelpruefung speichern
                     </button>
                   </form>
                   </details>
@@ -676,11 +774,11 @@ export default async function AlbumPage({
       <section className="section stamp-section">
         <div className="topbar">
           <div>
-            <h2>Marken in diesem Album</h2>
+            <h2>Einzelpruefungen in diesem Album</h2>
             <div className="muted">
               {expertOnly
                 ? "Gefiltert: Wertklasse ab 4 und Pruefbedarf ja"
-                : "Alle manuell angelegten Marken-Crops"}
+                : "Nur manuell angelegte Ausnahmen und KI-Pruefkandidaten"}
             </div>
           </div>
           <div className="toolbar">

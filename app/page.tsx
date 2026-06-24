@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 type HomeView = "overview" | "albums" | "create" | "activity";
 
 type HomeProps = {
-  searchParams?: Promise<{ q?: string; view?: string }> | { q?: string; view?: string };
+  searchParams?:
+    | Promise<{ actionError?: string; q?: string; view?: string }>
+    | { actionError?: string; q?: string; view?: string };
 };
 
 function shortDate(date: Date) {
@@ -32,18 +34,27 @@ function homeView(value: string | undefined): HomeView {
   return "overview";
 }
 
-function albumStatus(pageCount: number) {
-  if (pageCount === 0) {
-    return {
+function albumStatus(status: string) {
+  const labels: Record<string, { className: string; label: string }> = {
+    erfassung: {
       className: "status-pill status-pill-waiting",
-      label: "Ausstehend",
-    };
-  }
-
-  return {
-    className: "status-pill status-pill-review",
-    label: "In Pruefung",
+      label: "Erfassung",
+    },
+    auswertung: {
+      className: "status-pill status-pill-review",
+      label: "Auswertung",
+    },
+    sichtung: {
+      className: "status-pill status-pill-review",
+      label: "Sichtung",
+    },
+    fertig: {
+      className: "status-pill status-pill-done",
+      label: "Fertig",
+    },
   };
+
+  return labels[status] || labels.erfassung;
 }
 
 function CameraGlyph() {
@@ -76,6 +87,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const params = searchParams ? await searchParams : {};
   const activeView = homeView(params.view);
   const search = typeof params.q === "string" ? params.q.trim() : "";
+  const actionError = params.actionError;
   const albumWhere = search
     ? {
         OR: [
@@ -207,7 +219,7 @@ export default async function Home({ searchParams }: HomeProps) {
                   ? "Aktivitaet"
                   : "Uebersicht"}
           </h1>
-          <span>Ein Screen, eine Aufgabe.</span>
+          <span>Album erfassen, Seiten archivieren, spaeter am PC sichten.</span>
         </div>
         {activeView === "overview" ? (
         <div className="progress-panel" aria-label="Erfassungsfortschritt">
@@ -221,6 +233,12 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
         ) : null}
       </header>
+
+      {actionError ? (
+        <div className="error-banner" role="alert">
+          {actionError}
+        </div>
+      ) : null}
 
       <nav className="screen-tabs" aria-label="Startansichten">
         <Link className={activeView === "overview" ? "active" : ""} href="/">
@@ -248,7 +266,7 @@ export default async function Home({ searchParams }: HomeProps) {
         </span>
         <span className="primary-action-copy">
           <strong>Neues Album erfassen</strong>
-          <small>Kamera starten - KI-Bewertung - Archivieren</small>
+          <small>Album anlegen - Seiten scannen - Archivieren</small>
         </span>
         <ArrowGlyph />
       </Link>
@@ -260,7 +278,7 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
         <div className="stat-card">
           <strong>{compactNumber(stampCount)}</strong>
-          <span>Marken</span>
+          <span>Einzelpruefungen</span>
         </div>
         <div className="stat-card">
           <strong>{compactNumber(expertCount)}</strong>
@@ -319,7 +337,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <div className="album-card-list">
             {albums.map((album) => {
               const preview = album.imageUrl || album.pages[0]?.imageUrl;
-              const status = albumStatus(album._count.pages);
+              const status = albumStatus(album.status);
 
               return (
                 <article className="album-card" key={album.id}>
@@ -365,7 +383,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <div className="section-heading app-section-heading">
           <div>
             <h2>Neues Album hinzufuegen</h2>
-            <div className="muted">Praezise benennen und direkt weiter erfassen.</div>
+            <div className="muted">Albumfoto oder Kontextnotiz speichern und direkt Seiten scannen.</div>
           </div>
           {latestAlbum ? (
             <Link className="secondary-button compact" href={`/albums/${latestAlbum.id}?view=capture`}>
@@ -399,11 +417,15 @@ export default async function Home({ searchParams }: HomeProps) {
               <textarea
                 className="textarea compact-textarea"
                 name="notes"
-                placeholder="Herkunft, Zustand, besondere Marken..."
+                placeholder="Pflicht, wenn kein Albumfoto aufgenommen wird."
               />
             </label>
+            <div className="inline-error full-span">
+              Ohne Albumfoto ist eine Notiz erforderlich, damit das Album spaeter
+              eindeutig zugeordnet werden kann.
+            </div>
             <button className="button save-button" type="submit">
-              Album speichern & oeffnen
+              Album speichern & Seiten scannen
             </button>
           </form>
         </section>
@@ -415,7 +437,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <div className="section-heading app-section-heading">
           <div>
             <h2>Aktivitaet</h2>
-            <div className="muted">Zuletzt hinzugefuegte Seiten und Marken.</div>
+            <div className="muted">Zuletzt hinzugefuegte Seiten und Einzelpruefungen.</div>
           </div>
           <a className="secondary-button compact" href="/api/stamps/export">
             CSV

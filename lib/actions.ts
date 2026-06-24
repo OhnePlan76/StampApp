@@ -62,30 +62,42 @@ function redirectWithActionError(
   );
 }
 
+function redirectHomeWithActionError(message: string, anchor: string, view = "create") {
+  redirect(`/?view=${view}&actionError=${encodeURIComponent(message)}#${anchor}`);
+}
+
 export async function createAlbum(formData: FormData) {
   const name = textValue(formData, "name");
   const coverImage = fileValue(formData, "image");
   const coverImageData = textValue(formData, "imageData");
+  const notes = textValue(formData, "notes");
+  const hasCoverImage = Boolean(coverImageData || (coverImage && coverImage.size > 0));
 
   if (!name) {
     throw new Error("Der Albumname ist erforderlich.");
   }
 
-  const imageUrl =
-    coverImageData || (coverImage && coverImage.size > 0)
-      ? await saveFormImageUpload(coverImage, coverImageData, "album")
-      : null;
+  if (!hasCoverImage && !notes) {
+    redirectHomeWithActionError(
+      "Albumfoto kann uebersprungen werden, wenn eine Notiz den Kontext beschreibt.",
+      "album-anlegen",
+    );
+  }
+
+  const imageUrl = hasCoverImage
+    ? await saveFormImageUpload(coverImage, coverImageData, "album")
+    : null;
 
   const album = await prisma.album.create({
     data: {
       name,
       country: textValue(formData, "country") || null,
-      notes: textValue(formData, "notes") || null,
+      notes: notes || null,
       imageUrl,
     },
   });
 
-  redirect(`/albums/${album.id}`);
+  redirect(`/albums/${album.id}?view=capture`);
 }
 
 export async function updateAlbumCover(formData: FormData) {
@@ -130,6 +142,7 @@ export async function updateAlbum(formData: FormData) {
         name,
         country: optionalText(formData, "country"),
         notes: optionalText(formData, "notes"),
+        status: textValue(formData, "status") || "erfassung",
       },
     });
 
@@ -167,6 +180,7 @@ export async function uploadPage(formData: FormData) {
         notes: optionalText(formData, "notes"),
         quality,
         status: quality === "nachfotografieren" ? "nachfotografieren" : "offen",
+        analysisStatus: "wartet",
       },
     });
 
