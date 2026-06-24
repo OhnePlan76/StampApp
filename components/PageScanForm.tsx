@@ -72,16 +72,6 @@ export function PageScanForm({ albumId, initialPageNo }: PageScanFormProps) {
         resetSignal={resetSignal}
         required
       />
-      <label className="field">
-        <span>Scanqualitaet</span>
-        <select className="input" name="quality" defaultValue="gut">
-          <option value="gut">gut</option>
-          <option value="schief">schief</option>
-          <option value="unscharf">unscharf</option>
-          <option value="nachfotografieren">nachfotografieren</option>
-          <option value="unbekannt">unbekannt</option>
-        </select>
-      </label>
       <label className="field full-span">
         <span>Seitenvermerk</span>
         <textarea

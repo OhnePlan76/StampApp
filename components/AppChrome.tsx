@@ -27,14 +27,6 @@ function FolderIcon() {
   );
 }
 
-function CameraIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="nav-icon">
-      <path d="M8.5 5 10 3h4l1.5 2H19a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h3.5ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-    </svg>
-  );
-}
-
 function DownloadIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="chrome-icon">
@@ -47,10 +39,13 @@ function DownloadIcon() {
 export function AppChrome() {
   const pathname = usePathname();
   const inAlbum = pathname?.startsWith("/albums") || pathname?.startsWith("/alben");
-  const inCapture =
-    pathname === "/fotografieren" || pathname === "/erfassen" || pathname?.endsWith("/scannen");
+  const inCapture = pathname?.endsWith("/scannen");
   const inCollection = pathname === "/sammlung" || (inAlbum && !inCapture);
-  const inHome = pathname === "/" || pathname === "/aktivitaet";
+  const inHome =
+    pathname === "/" ||
+    pathname === "/aktivitaet" ||
+    pathname === "/fotografieren" ||
+    pathname === "/erfassen";
 
   return (
     <>
@@ -86,10 +81,6 @@ export function AppChrome() {
         <Link className={inCollection ? "active" : ""} href="/sammlung">
           <FolderIcon />
           <span>Sammlung</span>
-        </Link>
-        <Link className={inCapture ? "active" : ""} href="/fotografieren">
-          <CameraIcon />
-          <span>Albumfoto</span>
         </Link>
       </nav>
     </>

@@ -159,7 +159,6 @@ export async function uploadPage(formData: FormData) {
   const pageNo = Number(textValue(formData, "pageNo"));
   const image = fileValue(formData, "image");
   const imageData = textValue(formData, "imageData");
-  const quality = optionalText(formData, "quality");
 
   if (!albumId) {
     throw new Error("Album ist erforderlich.");
@@ -178,8 +177,8 @@ export async function uploadPage(formData: FormData) {
         pageNo,
         imageUrl,
         notes: optionalText(formData, "notes"),
-        quality,
-        status: quality === "nachfotografieren" ? "nachfotografieren" : "offen",
+        quality: null,
+        status: "offen",
         analysisStatus: "wartet",
       },
     });
