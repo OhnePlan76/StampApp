@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import { UploadImage } from "@/components/UploadImage";
 import { createAlbum } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
 
@@ -179,7 +180,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const recentItems = [
     ...recentPages.map((page) => ({
       key: `page-${page.id}`,
-      href: `/albums/${page.album.id}?view=pages#seite-${page.id}`,
+      href: `/alben/${page.album.id}/seiten#seite-${page.id}`,
       title: `Seite ${page.pageNo}`,
       context: page.album.name,
       meta: `${page._count.stamps} Marken`,
@@ -187,7 +188,7 @@ export default async function Home({ searchParams }: HomeProps) {
     })),
     ...recentStamps.map((stamp) => ({
       key: `stamp-${stamp.id}`,
-      href: `/albums/${stamp.page.album.id}?view=stamps`,
+      href: `/alben/${stamp.page.album.id}/sichtung`,
       title:
         stamp.manualCountryHint ||
         stamp.country ||
@@ -244,15 +245,15 @@ export default async function Home({ searchParams }: HomeProps) {
         <Link className={activeView === "overview" ? "active" : ""} href="/">
           Uebersicht
         </Link>
-        <Link className={activeView === "albums" ? "active" : ""} href="/?view=albums">
+        <Link className={activeView === "albums" ? "active" : ""} href="/sammlung">
           Sammlung
         </Link>
-        <Link className={activeView === "create" ? "active" : ""} href="/?view=create">
-          Erfassen
+        <Link className={activeView === "create" ? "active" : ""} href="/erfassen">
+          Scannen
         </Link>
         <Link
           className={activeView === "activity" ? "active" : ""}
-          href="/?view=activity"
+          href="/aktivitaet"
         >
           Aktivitaet
         </Link>
@@ -260,7 +261,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {activeView === "overview" ? (
       <section className="screen-panel overview-screen">
-      <Link className="primary-action-card" href="/?view=create">
+      <Link className="primary-action-card" href="/erfassen">
         <span className="primary-action-icon">
           <CameraGlyph />
         </span>
@@ -286,11 +287,11 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </section>
       <div className="quick-switch-grid">
-        <Link className="action-tile compact-tile" href="/?view=albums">
+        <Link className="action-tile compact-tile" href="/sammlung">
           <span>Sammlung</span>
           <strong>{albums.length} zuletzt</strong>
         </Link>
-        <Link className="action-tile compact-tile action-tile-warm" href="/?view=activity">
+        <Link className="action-tile compact-tile action-tile-warm" href="/aktivitaet">
           <span>Aktivitaet</span>
           <strong>{recentItems.length} Eintraege</strong>
         </Link>
@@ -305,13 +306,12 @@ export default async function Home({ searchParams }: HomeProps) {
             <h2>Letzte Alben</h2>
             <div className="muted">Schnell weiterarbeiten oder durchsuchen.</div>
           </div>
-          <Link className="text-link" href="/?view=albums">
+          <Link className="text-link" href="/sammlung">
             Alle ansehen
           </Link>
         </div>
 
-        <form action="/" className="search-form">
-          <input type="hidden" name="view" value="albums" />
+        <form action="/sammlung" className="search-form">
           <label className="field search-field">
             <span>Suche</span>
             <input
@@ -325,7 +325,7 @@ export default async function Home({ searchParams }: HomeProps) {
             Suchen
           </button>
           {search ? (
-            <Link className="secondary-button search-reset" href="/?view=albums">
+            <Link className="secondary-button search-reset" href="/sammlung">
               Zuruecksetzen
             </Link>
           ) : null}
@@ -342,19 +342,20 @@ export default async function Home({ searchParams }: HomeProps) {
               return (
                 <article className="album-card" key={album.id}>
                   <div className="album-card-main">
-                    <Link className="album-image-link" href={`/albums/${album.id}?view=pages`}>
+                    <Link className="album-image-link" href={`/alben/${album.id}/seiten`}>
                       {preview ? (
-                        <img
+                        <UploadImage
                           className="album-thumb"
                           src={preview}
                           alt={`Vorschau ${album.name}`}
+                          fallbackText="Bild fehlt"
                         />
                       ) : (
                         <StampFallback />
                       )}
                     </Link>
                     <div className="album-card-copy">
-                      <Link href={`/albums/${album.id}?view=pages`}>
+                      <Link href={`/alben/${album.id}/seiten`}>
                         <h3>{album.name}</h3>
                       </Link>
                       <span className={status.className}>{status.label}</span>
@@ -365,10 +366,10 @@ export default async function Home({ searchParams }: HomeProps) {
                     </div>
                   </div>
                   <div className="album-card-actions">
-                    <Link href={`/albums/${album.id}?view=capture`}>
+                    <Link href={`/alben/${album.id}/scannen`}>
                       Seiten scannen
                     </Link>
-                    <Link href={`/albums/${album.id}?view=edit`}>Bearbeiten</Link>
+                    <Link href={`/alben/${album.id}/daten`}>Bearbeiten</Link>
                   </div>
                 </article>
               );
@@ -386,7 +387,7 @@ export default async function Home({ searchParams }: HomeProps) {
             <div className="muted">Albumfoto oder Kontextnotiz speichern und direkt Seiten scannen.</div>
           </div>
           {latestAlbum ? (
-            <Link className="secondary-button compact" href={`/albums/${latestAlbum.id}?view=capture`}>
+            <Link className="secondary-button compact" href={`/alben/${latestAlbum.id}/scannen`}>
               Seite zu {latestAlbum.name}
             </Link>
           ) : null}

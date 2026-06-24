@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import { UploadImage } from "@/components/UploadImage";
 import {
   updateAlbum,
   updateAlbumCover,
@@ -154,22 +155,22 @@ export default async function AlbumPage({
       : Math.max(...album.pages.map((page) => page.pageNo)) + 1;
   const reviewQueue = [
     {
-      href: `/albums/${album.id}?view=capture`,
-      title: "Naechste Seite scannen",
+      href: `/alben/${album.id}/scannen`,
+      title: "Weiter scannen",
       meta: `Seite ${nextPageNo}`,
     },
     {
-      href: `/albums/${album.id}?view=pages`,
+      href: `/alben/${album.id}/seiten`,
       title: "Hintergrundauswertung",
       meta: `${queuedAnalysisCount} Seiten`,
     },
     {
-      href: `/albums/${album.id}?view=pages`,
-      title: "PC-Sichtung",
+      href: `/alben/${album.id}/seiten`,
+      title: "Nachbearbeiten",
       meta: `${reviewPageCount} Vermerke`,
     },
     {
-      href: `/albums/${album.id}?view=pages`,
+      href: `/alben/${album.id}/seiten`,
       title: "Nachfotografieren",
       meta: `${rephotoPageCount} Seiten`,
     },
@@ -201,10 +202,10 @@ export default async function AlbumPage({
           </div>
         </div>
         <div className="album-hero-actions">
-          <Link className="button" href={`/albums/${album.id}?view=capture`}>
-            Seite fotografieren
+          <Link className="button" href={`/alben/${album.id}/scannen`}>
+            Weiter scannen
           </Link>
-          <Link className="secondary-button" href={`/albums/${album.id}?view=edit`}>
+          <Link className="secondary-button" href={`/alben/${album.id}/daten`}>
             Bearbeiten
           </Link>
         </div>
@@ -216,57 +217,59 @@ export default async function AlbumPage({
         </div>
       ) : null}
 
+      {activeView !== "capture" ? (
       <nav className="screen-tabs" aria-label="Albumansichten">
-        <Link className={activeView === "summary" ? "active" : ""} href={`/albums/${album.id}`}>
+        <Link className={activeView === "summary" ? "active" : ""} href={`/alben/${album.id}`}>
           Uebersicht
         </Link>
         <Link
-          className={activeView === "capture" ? "active" : ""}
-          href={`/albums/${album.id}?view=capture`}
+          className=""
+          href={`/alben/${album.id}/scannen`}
         >
-          Erfassen
+          Scannen
         </Link>
         <Link
           className={activeView === "pages" ? "active" : ""}
-          href={`/albums/${album.id}?view=pages`}
+          href={`/alben/${album.id}/seiten`}
         >
           Seiten
         </Link>
         <Link
           className={activeView === "stamps" ? "active" : ""}
-          href={`/albums/${album.id}?view=stamps`}
+          href={`/alben/${album.id}/sichtung`}
         >
-          Pruefung
+          Sichtung
         </Link>
         <Link
           className={activeView === "edit" ? "active" : ""}
-          href={`/albums/${album.id}?view=edit`}
+          href={`/alben/${album.id}/daten`}
         >
           Daten
         </Link>
       </nav>
+      ) : null}
 
       {activeView === "summary" ? (
         <section className="screen-panel overview-screen">
           <div className="quick-switch-grid">
-            <Link className="action-tile compact-tile" href={`/albums/${album.id}?view=capture`}>
-              <span>Erfassen</span>
+            <Link className="action-tile compact-tile" href={`/alben/${album.id}/scannen`}>
+              <span>Scannen</span>
               <strong>naechste Seite {nextPageNo}</strong>
             </Link>
             <Link
               className="action-tile compact-tile action-tile-warm"
-              href={`/albums/${album.id}?view=pages`}
+              href={`/alben/${album.id}/seiten`}
             >
               <span>Seiten</span>
               <strong>{album.pages.length} erfasst</strong>
             </Link>
-            <Link className="action-tile compact-tile" href={`/albums/${album.id}?view=stamps`}>
-              <span>Review</span>
+            <Link className="action-tile compact-tile" href={`/alben/${album.id}/sichtung`}>
+              <span>Sichtung</span>
               <strong>{reviewPageCount} Vermerke</strong>
             </Link>
             <Link
               className="action-tile compact-tile action-tile-warm"
-              href={`/albums/${album.id}?view=edit`}
+              href={`/alben/${album.id}/daten`}
             >
               <span>Archiv</span>
               <strong>{donePageCount} Seiten fertig</strong>
@@ -622,16 +625,18 @@ export default async function AlbumPage({
       ) : null}
 
       {activeView === "capture" ? (
-      <section className="capture-callout" id="neue-seite">
+      <section className="capture-callout scanner-mode" id="neue-seite">
         <div className="capture-callout-top">
           <span className="primary-action-icon">
             <CameraGlyph />
           </span>
           <div>
-            <h2>Albumseite erfassen</h2>
-            <p>Foto aufnehmen - archivieren - naechste Seite scannen</p>
+            <h2>Seite {nextPageNo} scannen</h2>
+            <p>{album.pages.length} Seiten im Archiv - Auswertung laeuft spaeter</p>
           </div>
-          <ArrowGlyph />
+          <Link className="scanner-finish-link" href={`/alben/${album.id}/seiten`}>
+            Fertig
+          </Link>
         </div>
         <form action={uploadPage} className="capture-form album-capture-form">
           <input type="hidden" name="albumId" value={album.id} />
@@ -665,7 +670,7 @@ export default async function AlbumPage({
               placeholder="z. B. Rand beschaedigt, Marken unten schlecht sichtbar"
             />
           </label>
-          <button className="button submit-row" type="submit">
+          <button className="button submit-row scanner-submit" type="submit">
             Seite speichern & weiter
           </button>
         </form>
@@ -692,10 +697,11 @@ export default async function AlbumPage({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <img
+                  <UploadImage
                     className="page-thumb"
                     src={page.imageUrl}
                     alt={`Albumseite ${page.pageNo}`}
+                    fallbackText="Seite neu fotografieren"
                   />
                 </a>
                 <div>
@@ -786,8 +792,8 @@ export default async function AlbumPage({
               className={`secondary-button ${expertOnly ? "active" : ""}`}
               href={
                 expertOnly
-                  ? `/albums/${album.id}?view=stamps`
-                  : `/albums/${album.id}?view=stamps&filter=expert`
+                  ? `/alben/${album.id}/sichtung`
+                  : `/alben/${album.id}/sichtung?filter=expert`
               }
             >
               Wertklasse &gt;= 4 + Pruefbedarf

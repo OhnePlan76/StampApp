@@ -68,7 +68,7 @@ function albumLink(stamp: StampRow) {
 
   return (
     <>
-      <Link href={`/albums/${stamp.page.album.id}`}>{stamp.page.album.name}</Link>
+      <Link href={`/alben/${stamp.page.album.id}`}>{stamp.page.album.name}</Link>
       <div className="muted">Seite {stamp.page.pageNo}</div>
     </>
   );

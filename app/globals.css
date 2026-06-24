@@ -981,6 +981,11 @@ img {
   box-shadow: var(--shadow);
 }
 
+.scanner-mode {
+  gap: 14px;
+  border-color: rgba(31, 87, 138, 0.24);
+}
+
 .capture-callout-top {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1007,6 +1012,24 @@ img {
   line-height: 1.35;
 }
 
+.scanner-finish-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 7px 10px;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.scanner-finish-link:hover {
+  text-decoration: none;
+}
+
 .capture-form,
 .stamp-capture-form {
   display: grid;
@@ -1019,6 +1042,12 @@ img {
 
 .submit-row {
   justify-self: start;
+}
+
+.scanner-submit {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1rem;
 }
 
 .camera-field {
@@ -1062,6 +1091,23 @@ img {
   height: 100%;
   color: #d8e5f4;
   font-weight: 900;
+}
+
+.missing-upload {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed #b7c7da;
+  background: #eef3f8;
+  color: var(--muted);
+  text-align: center;
+}
+
+.missing-upload span {
+  max-width: 12ch;
+  padding: 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .native-file-input {
@@ -1428,6 +1474,14 @@ tr:last-child td {
     align-items: start;
   }
 
+  .scanner-mode .camera-field {
+    grid-column: 1 / -1;
+  }
+
+  .scanner-mode .camera-frame {
+    min-height: min(64vh, 620px);
+  }
+
   .stamp-capture-form {
     grid-template-columns: minmax(260px, 1.1fr) repeat(3, minmax(150px, 1fr));
     align-items: start;
@@ -1491,6 +1545,25 @@ tr:last-child td {
   .primary-action-card,
   .capture-callout-top {
     gap: 12px;
+  }
+
+  .scanner-mode {
+    margin-right: -4px;
+    margin-left: -4px;
+    padding: 10px;
+  }
+
+  .scanner-mode .capture-callout-top {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .scanner-mode .capture-callout-top .primary-action-icon,
+  .scanner-mode .capture-callout-top .arrow-icon {
+    display: none;
+  }
+
+  .scanner-mode .camera-frame {
+    min-height: min(58vh, 520px);
   }
 
   .primary-action-copy strong {
