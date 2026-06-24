@@ -204,7 +204,6 @@ export default async function Home({ searchParams }: HomeProps) {
   ]
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 6);
-  const progress = Math.min(100, Math.max(albumCount > 0 ? 12 : 4, albumCount * 8));
 
   return (
     <>
@@ -223,15 +222,16 @@ export default async function Home({ searchParams }: HomeProps) {
           <span>Album fotografieren, Seiten scannen, spaeter am PC sichten.</span>
         </div>
         {activeView === "overview" ? (
-        <div className="progress-panel" aria-label="Erfassungsfortschritt">
-          <div>
-            <strong>Fortschritt</strong>
-            <span>{albumCount} Alben erfasst</span>
+          <div className="hero-next-action" aria-label="Naechster Schritt">
+            <span>Naechster Schritt</span>
+            {latestAlbum ? (
+              <Link href={`/alben/${latestAlbum.id}/scannen`}>
+                Seiten in {latestAlbum.name} scannen
+              </Link>
+            ) : (
+              <Link href="/fotografieren">Album fotografieren</Link>
+            )}
           </div>
-          <div className="progress-track">
-            <span style={{ width: `${progress}%` }} />
-          </div>
-        </div>
         ) : null}
       </header>
 

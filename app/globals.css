@@ -232,39 +232,38 @@ img {
   line-height: 1.45;
 }
 
-.progress-panel {
+.hero-next-action {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  justify-items: start;
   margin-top: 18px;
   border-radius: 8px;
   background: rgba(15, 27, 61, 0.52);
-  padding: 12px;
+  padding: 14px;
 }
 
-.progress-panel div:first-child {
-  display: flex;
+.hero-next-action span {
+  color: #b6c6dc;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.hero-next-action a {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--navy-950);
+  padding: 10px 12px;
+  font-weight: 900;
+  text-decoration: none;
 }
 
-.progress-panel strong,
-.progress-panel span {
-  font-size: 0.86rem;
-}
-
-.progress-track {
-  overflow: hidden;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(216, 231, 246, 0.12);
-}
-
-.progress-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #68a6d8;
+.hero-next-action a:hover {
+  text-decoration: none;
 }
 
 .primary-action-card {
@@ -853,18 +852,33 @@ img {
 }
 
 .album-cover-preview {
-  display: block;
+  display: grid;
+  gap: 8px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-soft);
+  padding: 10px;
+  text-decoration: none;
+}
+
+.album-cover-preview span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .album-cover-preview img {
   display: block;
   width: 100%;
   max-height: 220px;
+  border-radius: 6px;
   object-fit: cover;
+}
+
+.cover-replace-editor {
+  margin-top: 12px;
 }
 
 .recent-list,

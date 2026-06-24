@@ -301,32 +301,41 @@ export default async function AlbumPage({
         <div className="section-heading app-section-heading">
           <div>
             <h2>Albumfoto</h2>
-            <div className="muted">Album einmal fotografieren, Foto pruefen, Kamera schliessen.</div>
+            <div className="muted">Aktuelles Foto ansehen oder bei Bedarf ersetzen.</div>
           </div>
         </div>
-        <form action={updateAlbumCover} className="form-grid">
-          <input type="hidden" name="albumId" value={album.id} />
-          {album.imageUrl ? (
-            <a
-              className="album-cover-preview"
-              href={album.imageUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <img src={album.imageUrl} alt={`Albumfoto ${album.name}`} />
-            </a>
-          ) : null}
-          <CameraCaptureField
-            name="image"
-            label="Albumfoto"
-            captureLabel="Foto machen"
-            startLabel="Kamera oeffnen"
-            stopLabel="Kamera schliessen"
-          />
-          <button className="button save-button" type="submit">
-            Albumfoto speichern
-          </button>
-        </form>
+        {album.imageUrl ? (
+          <a
+            className="album-cover-preview"
+            href={album.imageUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>Aktuelles Albumfoto</span>
+            <img src={album.imageUrl} alt={`Albumfoto ${album.name}`} />
+          </a>
+        ) : (
+          <p className="empty-state">Noch kein Albumfoto gespeichert.</p>
+        )}
+        <details className="inline-editor cover-replace-editor">
+          <summary>
+            <span>{album.imageUrl ? "Albumfoto ersetzen" : "Albumfoto fotografieren"}</span>
+            <small>Kamera oeffnen, Foto machen, Vorschau pruefen</small>
+          </summary>
+          <form action={updateAlbumCover} className="form-grid">
+            <input type="hidden" name="albumId" value={album.id} />
+            <CameraCaptureField
+              name="image"
+              label="Neues Albumfoto"
+              captureLabel="Foto machen"
+              startLabel="Kamera oeffnen"
+              stopLabel="Kamera schliessen"
+            />
+            <button className="button save-button" type="submit">
+              Neues Albumfoto speichern
+            </button>
+          </form>
+        </details>
       </section>
       ) : null}
 
