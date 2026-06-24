@@ -81,7 +81,7 @@ export function AppChrome() {
       <nav className="bottom-nav" aria-label="Hauptnavigation">
         <Link className={inHome ? "active" : ""} href="/">
           <HomeIcon />
-          <span>Home</span>
+          <span>Start</span>
         </Link>
         <Link className={inCollection ? "active" : ""} href="/sammlung">
           <FolderIcon />

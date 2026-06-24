@@ -252,6 +252,15 @@ img {
   text-decoration: none;
 }
 
+.primary-action-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.primary-action-card-secondary {
+  background: linear-gradient(135deg, #274b73, #325d88);
+}
+
 .primary-action-icon {
   width: 58px;
   height: 58px;

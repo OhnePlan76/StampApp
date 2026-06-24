@@ -209,7 +209,6 @@ export default async function Home({ searchParams }: HomeProps) {
     <>
       <header className="home-hero">
         <div className="home-hero-copy">
-          <p>StampCollector AI</p>
           <h1>
             {activeView === "create"
               ? "Fotografieren"
@@ -217,9 +216,17 @@ export default async function Home({ searchParams }: HomeProps) {
                 ? "Sammlung"
                 : activeView === "activity"
                   ? "Aktivitaet"
-                  : "Uebersicht"}
+                  : "Start"}
           </h1>
-          <span>Album fotografieren, Seiten scannen, spaeter am PC sichten.</span>
+          <span>
+            {activeView === "create"
+              ? "Neues Album fotografieren oder mit Notiz anlegen."
+              : activeView === "albums"
+                ? "Vorhandene Alben finden und weiterbearbeiten."
+                : activeView === "activity"
+                  ? "Letzte Seiten und Einzelpruefungen im Blick behalten."
+                  : "Anlegen, Scannen und bewerten."}
+          </span>
         </div>
       </header>
 
@@ -231,7 +238,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
       <nav className="screen-tabs" aria-label="Startansichten">
         <Link className={activeView === "overview" ? "active" : ""} href="/">
-          Uebersicht
+          Start
         </Link>
         <Link className={activeView === "albums" ? "active" : ""} href="/sammlung">
           Sammlung
@@ -249,25 +256,31 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {activeView === "overview" ? (
       <section className="screen-panel overview-screen">
-      <Link
-        className="primary-action-card"
-        href={latestAlbum ? `/alben/${latestAlbum.id}/scannen` : "/fotografieren"}
-      >
-        <span className="primary-action-icon">
-          <CameraGlyph />
-        </span>
-        <span className="primary-action-copy">
-          <strong>
-            {latestAlbum ? `Seiten in ${latestAlbum.name} scannen` : "Neues Album fotografieren"}
-          </strong>
-          <small>
-            {latestAlbum
-              ? "Scanner starten - Seiten speichern - fortfahren"
-              : "Albumfoto aufnehmen - danach Seiten scannen"}
-          </small>
-        </span>
-        <ArrowGlyph />
-      </Link>
+      <section className="primary-action-grid" aria-label="Startaktionen">
+        <Link className="primary-action-card" href="/fotografieren">
+          <span className="primary-action-icon">
+            <CameraGlyph />
+          </span>
+          <span className="primary-action-copy">
+            <strong>Neues Album anlegen</strong>
+            <small>Album fotografieren oder mit Notiz erfassen</small>
+          </span>
+          <ArrowGlyph />
+        </Link>
+
+        {latestAlbum ? (
+          <Link className="primary-action-card primary-action-card-secondary" href={`/alben/${latestAlbum.id}/scannen`}>
+            <span className="primary-action-icon">
+              <CameraGlyph />
+            </span>
+            <span className="primary-action-copy">
+              <strong>Fortsetzung letztes Album</strong>
+              <small>{latestAlbum.name}</small>
+            </span>
+            <ArrowGlyph />
+          </Link>
+        ) : null}
+      </section>
 
       <section className="stat-grid" aria-label="Sammlungskennzahlen">
         <div className="stat-card">
