@@ -47,7 +47,8 @@ function DownloadIcon() {
 export function AppChrome() {
   const pathname = usePathname();
   const inAlbum = pathname?.startsWith("/albums") || pathname?.startsWith("/alben");
-  const inCapture = pathname === "/erfassen" || pathname?.endsWith("/scannen");
+  const inCapture =
+    pathname === "/fotografieren" || pathname === "/erfassen" || pathname?.endsWith("/scannen");
   const inCollection = pathname === "/sammlung" || (inAlbum && !inCapture);
   const inHome = pathname === "/" || pathname === "/aktivitaet";
 
@@ -86,9 +87,9 @@ export function AppChrome() {
           <FolderIcon />
           <span>Sammlung</span>
         </Link>
-        <Link className={inCapture ? "active" : ""} href="/erfassen">
+        <Link className={inCapture ? "active" : ""} href="/fotografieren">
           <CameraIcon />
-          <span>Scannen</span>
+          <span>Albumfoto</span>
         </Link>
       </nav>
     </>

@@ -1197,6 +1197,12 @@ img {
   font-weight: 800;
 }
 
+.inline-success {
+  color: #1f7a4d;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
 .error-banner {
   margin: 16px 0;
   border: 1px solid var(--danger);

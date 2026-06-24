@@ -12,9 +12,14 @@ const MAX_IMAGE_PIXELS = 16_000_000;
 const JPEG_QUALITY = 0.92;
 
 type CameraCaptureFieldProps = {
+  captureLabel?: string;
   name: string;
   label: string;
+  mode?: "photo" | "scan";
   required?: boolean;
+  resetSignal?: number;
+  startLabel?: string;
+  stopLabel?: string;
 };
 
 type TorchCapabilities = MediaTrackCapabilities & {
@@ -149,9 +154,14 @@ function UploadIcon() {
 }
 
 export function CameraCaptureField({
+  captureLabel,
   name,
   label,
+  mode = "photo",
   required = false,
+  resetSignal = 0,
+  startLabel,
+  stopLabel,
 }: CameraCaptureFieldProps) {
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +175,7 @@ export function CameraCaptureField({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isScanMode = mode === "scan";
 
   useEffect(() => {
     return () => {
@@ -189,6 +200,23 @@ export function CameraCaptureField({
       );
     });
   }, [cameraActive]);
+
+  useEffect(() => {
+    if (resetSignal === 0) return;
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+
+    setPreviewUrl(null);
+    setFileInfo(null);
+    setError(null);
+  }, [resetSignal]);
 
   function setPreparedFile(image: PreparedImage) {
     const input = fileInputRef.current;
@@ -333,6 +361,10 @@ export function CameraCaptureField({
           `aufnahme-${Date.now()}.jpg`,
         ),
       );
+
+      if (!isScanMode) {
+        stopCamera();
+      }
     } catch (currentError) {
       setError(
         currentError instanceof Error
@@ -359,7 +391,7 @@ export function CameraCaptureField({
             autoPlay
           />
         ) : previewUrl ? (
-          <img className="camera-preview" src={previewUrl} alt={label} />
+          <img className="camera-preview" src={previewUrl} alt={`${label} Vorschau`} />
         ) : (
           <div className="camera-placeholder">{label}</div>
         )}
@@ -398,7 +430,7 @@ export function CameraCaptureField({
           disabled={busy}
           onClick={cameraActive ? stopCamera : startCamera}
         >
-          {cameraActive ? "Kamera aus" : "Kamera"}
+          {cameraActive ? stopLabel || "Kamera schliessen" : startLabel || "Kamera oeffnen"}
         </button>
         {cameraActive ? (
           <button
@@ -407,7 +439,7 @@ export function CameraCaptureField({
             disabled={busy}
             onClick={captureFrame}
           >
-            Aufnehmen
+            {captureLabel || (isScanMode ? "Seite aufnehmen" : "Foto machen")}
           </button>
         ) : null}
         <button
@@ -422,7 +454,11 @@ export function CameraCaptureField({
         </button>
       </div>
 
-      {fileInfo ? <div className="camera-file-info">{fileInfo}</div> : null}
+      {fileInfo ? (
+        <div className="camera-file-info">
+          {isScanMode ? `Letzte Seite bereit - ${fileInfo}` : `Foto bereit - ${fileInfo}`}
+        </div>
+      ) : null}
       {error ? <div className="inline-error">{error}</div> : null}
     </div>
   );

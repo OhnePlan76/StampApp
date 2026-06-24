@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
+import { PageScanForm } from "@/components/PageScanForm";
 import { UploadImage } from "@/components/UploadImage";
 import {
   updateAlbum,
   updateAlbumCover,
   updatePage,
   updateStamp,
-  uploadPage,
   uploadStampCrop,
 } from "@/lib/actions";
 import { prisma } from "@/lib/prisma";
@@ -185,7 +185,7 @@ export default async function AlbumPage({
         <div className="album-hero-copy">
           <p>{album.country || "Album"}</p>
           <h1>{album.name}</h1>
-          <span>{album.notes || "Seiten mobil archivieren, Auswertung nachgelagert, Sichtung am PC."}</span>
+          <span>{album.notes || "Album wurde fotografiert. Seiten werden im Scan-Modus archiviert."}</span>
         </div>
         <div className="album-hero-stats">
           <div>
@@ -203,7 +203,7 @@ export default async function AlbumPage({
         </div>
         <div className="album-hero-actions">
           <Link className="button" href={`/alben/${album.id}/scannen`}>
-            Weiter scannen
+            Seiten scannen
           </Link>
           <Link className="secondary-button" href={`/alben/${album.id}/daten`}>
             Bearbeiten
@@ -301,7 +301,7 @@ export default async function AlbumPage({
         <div className="section-heading app-section-heading">
           <div>
             <h2>Albumfoto</h2>
-            <div className="muted">Cover aktualisieren oder nachtraeglich aufnehmen.</div>
+            <div className="muted">Album einmal fotografieren, Foto pruefen, Kamera schliessen.</div>
           </div>
         </div>
         <form action={updateAlbumCover} className="form-grid">
@@ -316,7 +316,13 @@ export default async function AlbumPage({
               <img src={album.imageUrl} alt={`Albumfoto ${album.name}`} />
             </a>
           ) : null}
-          <CameraCaptureField name="image" label="Albumfoto" />
+          <CameraCaptureField
+            name="image"
+            label="Albumfoto"
+            captureLabel="Foto machen"
+            startLabel="Kamera oeffnen"
+            stopLabel="Kamera schliessen"
+          />
           <button className="button save-button" type="submit">
             Albumfoto speichern
           </button>
@@ -632,48 +638,13 @@ export default async function AlbumPage({
           </span>
           <div>
             <h2>Seite {nextPageNo} scannen</h2>
-            <p>{album.pages.length} Seiten im Archiv - Auswertung laeuft spaeter</p>
+            <p>Kamera bleibt offen - Seite speichern und fortfahren</p>
           </div>
           <Link className="scanner-finish-link" href={`/alben/${album.id}/seiten`}>
             Fertig
           </Link>
         </div>
-        <form action={uploadPage} className="capture-form album-capture-form">
-          <input type="hidden" name="albumId" value={album.id} />
-          <label className="field">
-            <span>Seitennummer</span>
-            <input
-              className="input"
-              type="number"
-              name="pageNo"
-              min="1"
-              defaultValue={nextPageNo}
-              required
-            />
-          </label>
-          <CameraCaptureField name="image" label="Foto" required />
-          <label className="field">
-            <span>Aufnahmequalitaet</span>
-            <select className="input" name="quality" defaultValue="gut">
-              <option value="gut">gut</option>
-              <option value="schief">schief</option>
-              <option value="unscharf">unscharf</option>
-              <option value="nachfotografieren">nachfotografieren</option>
-              <option value="unbekannt">unbekannt</option>
-            </select>
-          </label>
-          <label className="field full-span">
-            <span>Seitennotiz</span>
-            <textarea
-              className="textarea compact-textarea"
-              name="notes"
-              placeholder="z. B. Rand beschaedigt, Marken unten schlecht sichtbar"
-            />
-          </label>
-          <button className="button submit-row scanner-submit" type="submit">
-            Seite speichern & weiter
-          </button>
-        </form>
+        <PageScanForm albumId={album.id} initialPageNo={nextPageNo} />
       </section>
       ) : null}
 

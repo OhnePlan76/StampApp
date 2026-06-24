@@ -213,14 +213,14 @@ export default async function Home({ searchParams }: HomeProps) {
           <p>StampCollector AI</p>
           <h1>
             {activeView === "create"
-              ? "Erfassen"
+              ? "Fotografieren"
               : activeView === "albums"
                 ? "Sammlung"
                 : activeView === "activity"
                   ? "Aktivitaet"
                   : "Uebersicht"}
           </h1>
-          <span>Album erfassen, Seiten archivieren, spaeter am PC sichten.</span>
+          <span>Album fotografieren, Seiten scannen, spaeter am PC sichten.</span>
         </div>
         {activeView === "overview" ? (
         <div className="progress-panel" aria-label="Erfassungsfortschritt">
@@ -248,8 +248,8 @@ export default async function Home({ searchParams }: HomeProps) {
         <Link className={activeView === "albums" ? "active" : ""} href="/sammlung">
           Sammlung
         </Link>
-        <Link className={activeView === "create" ? "active" : ""} href="/erfassen">
-          Scannen
+        <Link className={activeView === "create" ? "active" : ""} href="/fotografieren">
+          Fotografieren
         </Link>
         <Link
           className={activeView === "activity" ? "active" : ""}
@@ -261,13 +261,13 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {activeView === "overview" ? (
       <section className="screen-panel overview-screen">
-      <Link className="primary-action-card" href="/erfassen">
+      <Link className="primary-action-card" href="/fotografieren">
         <span className="primary-action-icon">
           <CameraGlyph />
         </span>
         <span className="primary-action-copy">
-          <strong>Neues Album erfassen</strong>
-          <small>Album anlegen - Seiten scannen - Archivieren</small>
+          <strong>Neues Album fotografieren</strong>
+          <small>Albumfoto aufnehmen - danach Seiten scannen</small>
         </span>
         <ArrowGlyph />
       </Link>
@@ -384,7 +384,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <div className="section-heading app-section-heading">
           <div>
             <h2>Neues Album hinzufuegen</h2>
-            <div className="muted">Albumfoto oder Kontextnotiz speichern und direkt Seiten scannen.</div>
+            <div className="muted">Album einmal fotografieren, Foto pruefen, danach Seiten scannen.</div>
           </div>
           {latestAlbum ? (
             <Link className="secondary-button compact" href={`/alben/${latestAlbum.id}/scannen`}>
@@ -412,7 +412,13 @@ export default async function Home({ searchParams }: HomeProps) {
                 placeholder="z. B. Deutschland"
               />
             </label>
-            <CameraCaptureField name="image" label="Albumfoto" />
+            <CameraCaptureField
+              name="image"
+              label="Albumfoto"
+              captureLabel="Foto machen"
+              startLabel="Kamera oeffnen"
+              stopLabel="Kamera schliessen"
+            />
             <label className="field">
               <span>Notizen</span>
               <textarea
