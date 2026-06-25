@@ -12,6 +12,7 @@ type PageScanFormProps = {
 export function PageScanForm({ albumId, initialPageNo }: PageScanFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pageNo, setPageNo] = useState(initialPageNo);
+  const [objectType, setObjectType] = useState("albumseite");
   const [resetSignal, setResetSignal] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +33,13 @@ export function PageScanForm({ albumId, initialPageNo }: PageScanFormProps) {
       try {
         await uploadPage(formData);
         const savedPageNo = pageNo;
+        const savedObjectType = objectType === "beleg" ? "Beleg" : "Seite";
 
         form.reset();
         setPageNo((currentPageNo) => currentPageNo + 1);
+        setObjectType("albumseite");
         setResetSignal((currentSignal) => currentSignal + 1);
-        setMessage(`Seite ${savedPageNo} gespeichert. Naechste Seite kann gescannt werden.`);
+        setMessage(`${savedObjectType} ${savedPageNo} gespeichert. Naechstes Bild kann gescannt werden.`);
       } catch (currentError) {
         setError(
           currentError instanceof Error
@@ -51,7 +54,19 @@ export function PageScanForm({ albumId, initialPageNo }: PageScanFormProps) {
     <form ref={formRef} onSubmit={submit} className="capture-form album-capture-form">
       <input type="hidden" name="albumId" value={albumId} />
       <label className="field">
-        <span>Seitennummer</span>
+        <span>Typ</span>
+        <select
+          className="input"
+          name="objectType"
+          value={objectType}
+          onChange={(event) => setObjectType(event.target.value)}
+        >
+          <option value="albumseite">Albumseite</option>
+          <option value="beleg">Brief / Beleg</option>
+        </select>
+      </label>
+      <label className="field">
+        <span>{objectType === "beleg" ? "Belegnummer" : "Seitennummer"}</span>
         <input
           className="input"
           type="number"
@@ -64,24 +79,32 @@ export function PageScanForm({ albumId, initialPageNo }: PageScanFormProps) {
       </label>
       <CameraCaptureField
         name="image"
-        label={`Seite ${pageNo}`}
+        label={objectType === "beleg" ? `Beleg ${pageNo}` : `Seite ${pageNo}`}
         mode="scan"
-        captureLabel="Seite aufnehmen"
+        captureLabel={objectType === "beleg" ? "Beleg aufnehmen" : "Seite aufnehmen"}
         startLabel="Scanner starten"
         stopLabel="Scanner beenden"
         resetSignal={resetSignal}
         required
       />
       <label className="field full-span">
-        <span>Seitenvermerk</span>
+        <span>{objectType === "beleg" ? "Belegvermerk" : "Seitenvermerk"}</span>
         <textarea
           className="textarea compact-textarea"
           name="notes"
-          placeholder="z. B. Rand beschaedigt, Marken unten schlecht sichtbar"
+          placeholder={
+            objectType === "beleg"
+              ? "z. B. Ersttag, Sonderstempel, vollstaendiger Brief"
+              : "z. B. Rand beschaedigt, Marken unten schlecht sichtbar"
+          }
         />
       </label>
       <button className="button submit-row scanner-submit" type="submit" disabled={isPending}>
-        {isPending ? "Seite wird gespeichert..." : "Seite speichern & fortfahren"}
+        {isPending
+          ? "Bild wird gespeichert..."
+          : objectType === "beleg"
+            ? "Beleg speichern & fortfahren"
+            : "Seite speichern & fortfahren"}
       </button>
       {message ? <div className="inline-success full-span">{message}</div> : null}
       {error ? <div className="inline-error full-span">{error}</div> : null}

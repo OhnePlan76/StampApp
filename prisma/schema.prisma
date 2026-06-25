@@ -24,6 +24,7 @@ model Page {
   id        String   @id @default(cuid())
   albumId   String
   pageNo    Int
+  objectType String   @default("albumseite")
   imageUrl  String
   notes     String?
   quality   String?
@@ -39,6 +40,7 @@ model Page {
 
   @@unique([albumId, pageNo])
   @@index([albumId])
+  @@index([objectType])
   @@index([status])
   @@index([analysisStatus])
 }

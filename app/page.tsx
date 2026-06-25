@@ -58,6 +58,10 @@ function albumStatus(status: string) {
   return labels[status] || labels.erfassung;
 }
 
+function pageObjectTypeLabel(objectType: string) {
+  return objectType === "beleg" ? "Beleg" : "Seite";
+}
+
 function CameraGlyph() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="tile-icon">
@@ -134,7 +138,11 @@ export default async function Home({ searchParams }: HomeProps) {
     prisma.page.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: {
+      select: {
+        id: true,
+        pageNo: true,
+        objectType: true,
+        createdAt: true,
         album: {
           select: {
             id: true,
@@ -181,7 +189,7 @@ export default async function Home({ searchParams }: HomeProps) {
     ...recentPages.map((page) => ({
       key: `page-${page.id}`,
       href: `/alben/${page.album.id}/seiten#seite-${page.id}`,
-      title: `Seite ${page.pageNo}`,
+      title: `${pageObjectTypeLabel(page.objectType)} ${page.pageNo}`,
       context: page.album.name,
       meta: `${page._count.stamps} Marken`,
       date: page.createdAt,
@@ -361,7 +369,7 @@ export default async function Home({ searchParams }: HomeProps) {
                       <span className={status.className}>{status.label}</span>
                       <p>
                         {album.country || album.notes || "Noch keine Details"} -{" "}
-                        {album._count.pages} Seiten - {shortDate(album.createdAt)}
+                        {album._count.pages} Objekte - {shortDate(album.createdAt)}
                       </p>
                     </div>
                   </div>

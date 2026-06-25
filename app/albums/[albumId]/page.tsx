@@ -33,6 +33,14 @@ function pageStatusLabel(status: string) {
   return labels[status] || status;
 }
 
+function pageObjectTypeLabel(objectType: string) {
+  return objectType === "beleg" ? "Beleg" : "Albumseite";
+}
+
+function pageItemLabel(objectType: string, pageNo: number) {
+  return objectType === "beleg" ? `Beleg ${pageNo}` : `Seite ${pageNo}`;
+}
+
 function albumStatusLabel(status: string) {
   const labels: Record<string, string> = {
     erfassung: "Erfassung",
@@ -138,6 +146,8 @@ export default async function AlbumPage({
   const rephotoPageCount = album.pages.filter(
     (page) => page.status === "nachfotografieren" || page.quality === "nachfotografieren",
   ).length;
+  const albumPageCount = album.pages.filter((page) => page.objectType !== "beleg").length;
+  const coverCount = album.pages.filter((page) => page.objectType === "beleg").length;
   const openPageCount = album.pages.filter((page) => page.status === "offen").length;
   const donePageCount = album.pages.filter((page) => page.status === "fertig").length;
   const queuedAnalysisCount = album.pages.filter(
@@ -157,12 +167,12 @@ export default async function AlbumPage({
     {
       href: `/alben/${album.id}/scannen`,
       title: "Weiter scannen",
-      meta: `Seite ${nextPageNo}`,
+      meta: `naechstes Bild ${nextPageNo}`,
     },
     {
       href: `/alben/${album.id}/seiten`,
       title: "Hintergrundauswertung",
-      meta: `${queuedAnalysisCount} Seiten`,
+      meta: `${queuedAnalysisCount} Objekte`,
     },
     {
       href: `/alben/${album.id}/seiten`,
@@ -190,7 +200,7 @@ export default async function AlbumPage({
         <div className="album-hero-stats">
           <div>
             <strong>{album.pages.length}</strong>
-            <span>Seiten</span>
+            <span>Objekte</span>
           </div>
           <div>
             <strong>{albumStatusLabel(album.status)}</strong>
@@ -203,7 +213,7 @@ export default async function AlbumPage({
         </div>
         <div className="album-hero-actions">
           <Link className="button" href={`/alben/${album.id}/scannen`}>
-            Seiten scannen
+            Seiten / Belege scannen
           </Link>
           <Link className="secondary-button" href={`/alben/${album.id}/daten`}>
             Bearbeiten
@@ -254,14 +264,14 @@ export default async function AlbumPage({
           <div className="quick-switch-grid">
             <Link className="action-tile compact-tile" href={`/alben/${album.id}/scannen`}>
               <span>Scannen</span>
-              <strong>naechste Seite {nextPageNo}</strong>
+              <strong>naechstes Bild {nextPageNo}</strong>
             </Link>
             <Link
               className="action-tile compact-tile action-tile-warm"
               href={`/alben/${album.id}/seiten`}
             >
-              <span>Seiten</span>
-              <strong>{album.pages.length} erfasst</strong>
+              <span>Archiv</span>
+              <strong>{albumPageCount} Seiten / {coverCount} Belege</strong>
             </Link>
             <Link className="action-tile compact-tile" href={`/alben/${album.id}/sichtung`}>
               <span>Sichtung</span>
@@ -272,7 +282,7 @@ export default async function AlbumPage({
               href={`/alben/${album.id}/daten`}
             >
               <span>Archiv</span>
-              <strong>{donePageCount} Seiten fertig</strong>
+              <strong>{donePageCount} Objekte fertig</strong>
             </Link>
           </div>
           <section className="form-panel">
@@ -394,7 +404,7 @@ export default async function AlbumPage({
             <div className="section-heading app-section-heading">
               <div>
                 <h2>Seiten bearbeiten</h2>
-                <div className="muted">Nummer, Status, Qualitaet, Auswertung und Notiz.</div>
+                <div className="muted">Typ, Nummer, Status, Qualitaet, Auswertung und Notiz.</div>
               </div>
             </div>
             {album.pages.length === 0 ? (
@@ -404,14 +414,25 @@ export default async function AlbumPage({
                 {album.pages.map((page) => (
                   <details className="inline-editor" key={page.id}>
                     <summary>
-                      <span>Seite {page.pageNo}</span>
+                      <span>{pageItemLabel(page.objectType, page.pageNo)}</span>
                       <small>{pageStatusLabel(page.status)}</small>
                     </summary>
                     <form action={updatePage} className="edit-grid">
                       <input type="hidden" name="albumId" value={album.id} />
                       <input type="hidden" name="pageId" value={page.id} />
                       <label className="field">
-                        <span>Seitennummer</span>
+                        <span>Typ</span>
+                        <select
+                          className="input"
+                          name="objectType"
+                          defaultValue={page.objectType}
+                        >
+                          <option value="albumseite">Albumseite</option>
+                          <option value="beleg">Brief / Beleg</option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Nummer</span>
                         <input
                           className="input"
                           type="number"
@@ -647,7 +668,7 @@ export default async function AlbumPage({
           </span>
           <div>
             <h2>Seite {nextPageNo} scannen</h2>
-            <p>Kamera bleibt offen - Seite speichern und fortfahren</p>
+            <p>Kamera bleibt offen - Albumseiten oder Belege speichern</p>
           </div>
           <Link className="scanner-finish-link" href={`/alben/${album.id}/seiten`}>
             Fertig
@@ -662,11 +683,11 @@ export default async function AlbumPage({
         <div className="section-heading app-section-heading">
           <div>
             <h2>Seitenliste</h2>
-            <div className="muted">Archivierte Seiten, Auswertungsstatus und Nachbearbeitungsvermerke.</div>
+            <div className="muted">Archivierte Albumseiten und Belege mit Auswertungsstatus.</div>
           </div>
         </div>
         {album.pages.length === 0 ? (
-          <p className="empty-state">Noch keine Seiten hochgeladen.</p>
+          <p className="empty-state">Noch keine Seiten oder Belege hochgeladen.</p>
         ) : (
           <div className="page-list">
             {album.pages.map((page) => (
@@ -680,14 +701,14 @@ export default async function AlbumPage({
                   <UploadImage
                     className="page-thumb"
                     src={page.imageUrl}
-                    alt={`Albumseite ${page.pageNo}`}
+                    alt={pageItemLabel(page.objectType, page.pageNo)}
                     fallbackText="Seite neu fotografieren"
                   />
                 </a>
                 <div>
                   <div className="page-row-header">
                     <div>
-                      <h3>Seite {page.pageNo}</h3>
+                      <h3>{pageItemLabel(page.objectType, page.pageNo)}</h3>
                       <div className="muted">
                         {pageAnalysisStatusLabel(page.analysisStatus)}
                       </div>
@@ -697,6 +718,7 @@ export default async function AlbumPage({
                     </span>
                   </div>
                   <div className="meta-strip">
+                    <span>Typ: {pageObjectTypeLabel(page.objectType)}</span>
                     {page.quality ? <span>Qualitaet: {page.quality}</span> : null}
                     <span>Auswertung: {pageAnalysisStatusLabel(page.analysisStatus)}</span>
                     {page.analysisNotes ? <span>Vermerk: {page.analysisNotes}</span> : null}
@@ -704,8 +726,16 @@ export default async function AlbumPage({
                   </div>
                   <details className="inline-editor crop-editor">
                     <summary>
-                      <span>Ausnahme: Einzelmarke pruefen</span>
-                      <small>bei KI-Hinweis oder Nutzerwunsch</small>
+                      <span>
+                        {page.objectType === "beleg"
+                          ? "Ausnahme: Frankatur einzeln pruefen"
+                          : "Ausnahme: Einzelmarke pruefen"}
+                      </span>
+                      <small>
+                        {page.objectType === "beleg"
+                          ? "wenn Beleganalyse eine Marke nicht klaert"
+                          : "bei KI-Hinweis oder Nutzerwunsch"}
+                      </small>
                     </summary>
                   <form action={uploadStampCrop} className="stamp-capture-form">
                     <input type="hidden" name="albumId" value={album.id} />

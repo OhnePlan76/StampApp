@@ -19,6 +19,12 @@ function optionalText(formData: FormData, key: string) {
   return textValue(formData, key) || null;
 }
 
+function pageObjectType(formData: FormData) {
+  const value = textValue(formData, "objectType");
+
+  return value === "beleg" ? "beleg" : "albumseite";
+}
+
 function optionalInt(formData: FormData, key: string) {
   const value = textValue(formData, key);
 
@@ -157,6 +163,7 @@ export async function updateAlbum(formData: FormData) {
 export async function uploadPage(formData: FormData) {
   const albumId = textValue(formData, "albumId");
   const pageNo = Number(textValue(formData, "pageNo"));
+  const objectType = pageObjectType(formData);
   const image = fileValue(formData, "image");
   const imageData = textValue(formData, "imageData");
 
@@ -175,6 +182,7 @@ export async function uploadPage(formData: FormData) {
       data: {
         albumId,
         pageNo,
+        objectType,
         imageUrl,
         notes: optionalText(formData, "notes"),
         quality: null,
@@ -194,6 +202,7 @@ export async function updatePage(formData: FormData) {
   const albumId = textValue(formData, "albumId");
   const pageId = textValue(formData, "pageId");
   const pageNo = Number(textValue(formData, "pageNo"));
+  const objectType = pageObjectType(formData);
   const quality = optionalText(formData, "quality");
 
   if (!albumId || !pageId) {
@@ -209,6 +218,7 @@ export async function updatePage(formData: FormData) {
       where: { id: pageId },
       data: {
         pageNo,
+        objectType,
         quality,
         status: textValue(formData, "status") || "offen",
         notes: optionalText(formData, "notes"),
