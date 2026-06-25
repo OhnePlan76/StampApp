@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { PageScanForm } from "@/components/PageScanForm";
+import { PageAnalyzeButton } from "@/components/PageAnalyzeButton";
 import { UploadImage } from "@/components/UploadImage";
 import {
   updateAlbum,
@@ -724,6 +725,11 @@ export default async function AlbumPage({
                     {page.analysisNotes ? <span>Vermerk: {page.analysisNotes}</span> : null}
                     {page.notes ? <span>Notiz: {page.notes}</span> : null}
                   </div>
+                  <PageAnalyzeButton
+                    pageId={page.id}
+                    objectType={page.objectType}
+                    analyzed={page.analysisStatus !== "wartet"}
+                  />
                   <details className="inline-editor crop-editor">
                     <summary>
                       <span>
