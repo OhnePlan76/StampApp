@@ -18,6 +18,49 @@ export const stampAnalysisSchema = z.object({
 
 export type StampAnalysis = z.infer<typeof stampAnalysisSchema>;
 
+export const pageAnalysisSchema = z.object({
+  objectType: z.enum(["albumseite", "beleg", "einzelmarke", "unbrauchbar"]),
+  captureQuality: z.enum(["ok", "grenzwertig", "kritisch"]),
+  completeness: z.enum([
+    "vollstaendig",
+    "vollstaendig_genug",
+    "teilweise_abgeschnitten",
+    "wesentlich_abgeschnitten",
+    "unklar",
+  ]),
+  qualityFlags: z.array(
+    z.enum([
+      "unscharf",
+      "schief_perspektive",
+      "spiegelung_schatten",
+      "zu_klein_aufgenommen",
+      "rand_abgeschnitten",
+      "bereich_fehlt",
+      "teilweise_verdeckt",
+      "schutzfolie_reflex",
+      "ok",
+    ]),
+  ),
+  detectedItems: z.object({
+    stampCountEstimate: z.number().int().min(0),
+    postmarkCountEstimate: z.number().int().min(0),
+    addressVisible: z.boolean(),
+    specialCancelLikely: z.boolean(),
+    coverOrCardLikely: z.boolean(),
+  }),
+  recommendedAction: z.enum([
+    "akzeptieren",
+    "zur_sichtung",
+    "neu_fotografieren",
+    "einzelmarke_empfehlen",
+    "beleg_analysieren",
+  ]),
+  singleStampExceptionSuggested: z.boolean(),
+  summary: z.string(),
+});
+
+export type PageAnalysis = z.infer<typeof pageAnalysisSchema>;
+
 const analysisJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -94,6 +137,92 @@ const analysisJsonSchema = {
   ],
 };
 
+const pageAnalysisJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    objectType: {
+      type: "string",
+      enum: ["albumseite", "beleg", "einzelmarke", "unbrauchbar"],
+    },
+    captureQuality: {
+      type: "string",
+      enum: ["ok", "grenzwertig", "kritisch"],
+    },
+    completeness: {
+      type: "string",
+      enum: [
+        "vollstaendig",
+        "vollstaendig_genug",
+        "teilweise_abgeschnitten",
+        "wesentlich_abgeschnitten",
+        "unklar",
+      ],
+    },
+    qualityFlags: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: [
+          "unscharf",
+          "schief_perspektive",
+          "spiegelung_schatten",
+          "zu_klein_aufgenommen",
+          "rand_abgeschnitten",
+          "bereich_fehlt",
+          "teilweise_verdeckt",
+          "schutzfolie_reflex",
+          "ok",
+        ],
+      },
+    },
+    detectedItems: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        stampCountEstimate: { type: "integer", minimum: 0 },
+        postmarkCountEstimate: { type: "integer", minimum: 0 },
+        addressVisible: { type: "boolean" },
+        specialCancelLikely: { type: "boolean" },
+        coverOrCardLikely: { type: "boolean" },
+      },
+      required: [
+        "stampCountEstimate",
+        "postmarkCountEstimate",
+        "addressVisible",
+        "specialCancelLikely",
+        "coverOrCardLikely",
+      ],
+    },
+    recommendedAction: {
+      type: "string",
+      enum: [
+        "akzeptieren",
+        "zur_sichtung",
+        "neu_fotografieren",
+        "einzelmarke_empfehlen",
+        "beleg_analysieren",
+      ],
+    },
+    singleStampExceptionSuggested: { type: "boolean" },
+    summary: {
+      type: "string",
+      description:
+        "Short German summary for the review queue. Mention the concrete reason for the action.",
+    },
+  },
+  required: [
+    "objectType",
+    "captureQuality",
+    "completeness",
+    "qualityFlags",
+    "detectedItems",
+    "recommendedAction",
+    "singleStampExceptionSuggested",
+    "summary",
+  ],
+};
+
 function getClient() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY ist nicht gesetzt.");
@@ -145,6 +274,68 @@ export async function analyzeStampImageBytes(bytes: Buffer, mimeType: string) {
 
   const outputText = response.output_text;
   const parsed = stampAnalysisSchema.parse(JSON.parse(outputText));
+
+  return {
+    data: parsed,
+    raw: {
+      responseId: response.id,
+      model,
+      outputText,
+      parsed,
+      usage: response.usage ?? null,
+    },
+  };
+}
+
+export async function analyzePageImageBytes(
+  bytes: Buffer,
+  mimeType: string,
+  objectType: string,
+) {
+  const client = getClient();
+  const imageBase64 = bytes.toString("base64");
+  const model = process.env.OPENAI_VISION_MODEL || "gpt-5.5";
+  const expectedObject =
+    objectType === "beleg"
+      ? "The user marked this image as a full postal cover/card/document. Treat stamps, postmarks, address and document completeness as one cover object."
+      : "The user marked this image as an album page. Treat it as a page with multiple stamps unless the image clearly shows a full cover/card/document.";
+
+  const response = await client.responses.create({
+    model,
+    input: [
+      {
+        role: "system",
+        content:
+          "You are a cautious philately intake assistant. Your task is not a final catalog valuation. Triage the uploaded image for a stamp collection workflow and decide the next action.",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text:
+              `${expectedObject}\n\nReturn JSON only. Decide whether this is an album page, a full cover/card/document (beleg), a single stamp exception, or unusable. For covers, evaluate the whole cover: stamps, cancellation/postmark, address visibility, special cancel, and whether the cover is complete enough. For album pages, evaluate page quality, completeness, approximate stamp count, and whether a single-stamp exception is warranted. Choose recommendedAction by workflow: akzeptieren = usable without human review; zur_sichtung = usable but needs PC review; neu_fotografieren = missing/blurred/cut off enough to retake; einzelmarke_empfehlen = only if a small region should be captured separately; beleg_analysieren = full cover/card should follow cover analysis rather than single-stamp flow.`,
+          },
+          {
+            type: "input_image",
+            image_url: `data:${mimeType};base64,${imageBase64}`,
+          },
+        ],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "page_analysis",
+        strict: true,
+        schema: pageAnalysisJsonSchema,
+      },
+    },
+    max_output_tokens: 1400,
+  } as never);
+
+  const outputText = response.output_text;
+  const parsed = pageAnalysisSchema.parse(JSON.parse(outputText));
 
   return {
     data: parsed,
