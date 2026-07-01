@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { PageScanForm } from "@/components/PageScanForm";
-import { PageAnalyzeButton } from "@/components/PageAnalyzeButton";
 import { UploadImage } from "@/components/UploadImage";
 import {
   updateAlbum,
@@ -55,14 +54,42 @@ function albumStatusLabel(status: string) {
 
 function pageAnalysisStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    wartet: "Wartet auf Auswertung",
-    laeuft: "Auswertung laeuft",
+    wartet: "wartet",
+    laeuft: "laeuft",
     sichtung: "Sichtung erforderlich",
-    fertig: "Auswertung fertig",
-    fehler: "Auswertung fehlgeschlagen",
+    fertig: "fertig",
+    fehler: "fehlgeschlagen",
   };
 
   return labels[status] || status;
+}
+
+function compactPageVermerk(
+  analysisRaw: unknown,
+  analysisNotes: string | null,
+  stampCount: number,
+) {
+  const raw =
+    analysisRaw && typeof analysisRaw === "object" && !Array.isArray(analysisRaw)
+      ? (analysisRaw as { chatgptResearchPackages?: unknown })
+      : {};
+  const hasResearchPackages =
+    Array.isArray(raw.chatgptResearchPackages) && raw.chatgptResearchPackages.length > 0;
+
+  if (hasResearchPackages || stampCount > 0) {
+    return `${stampCount} Recherchekandidat${stampCount === 1 ? "" : "en"} fuer ChatGPT-Sichtung.`;
+  }
+
+  if (!analysisNotes) return null;
+
+  const compactNotes = analysisNotes
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith("ChatGPT-Recherchepaket:"))
+    .filter((line, index, lines) => lines.indexOf(line) === index);
+
+  return compactNotes.length > 0 ? compactNotes.join(" ") : null;
 }
 
 function albumView(value: string | undefined): AlbumView {
@@ -468,7 +495,7 @@ export default async function AlbumPage({
                         </select>
                       </label>
                       <label className="field">
-                        <span>Auswertung</span>
+                        <span>Status</span>
                         <input
                           className="input"
                           value={pageAnalysisStatusLabel(page.analysisStatus)}
@@ -707,6 +734,19 @@ export default async function AlbumPage({
                   />
                 </a>
                 <div>
+                  {/*
+                    Page notes can contain historical analysis/import noise. Keep the
+                    list compact; detailed candidates live in the Sichtung view.
+                  */}
+                  {(() => {
+                    const vermerk = compactPageVermerk(
+                      page.analysisRaw,
+                      page.analysisNotes,
+                      page.stamps.length,
+                    );
+
+                    return (
+                      <>
                   <div className="page-row-header">
                     <div>
                       <h3>{pageItemLabel(page.objectType, page.pageNo)}</h3>
@@ -721,15 +761,13 @@ export default async function AlbumPage({
                   <div className="meta-strip">
                     <span>Typ: {pageObjectTypeLabel(page.objectType)}</span>
                     {page.quality ? <span>Qualitaet: {page.quality}</span> : null}
-                    <span>Auswertung: {pageAnalysisStatusLabel(page.analysisStatus)}</span>
-                    {page.analysisNotes ? <span>Vermerk: {page.analysisNotes}</span> : null}
+                    <span>Status: {pageAnalysisStatusLabel(page.analysisStatus)}</span>
+                    {vermerk ? <span>Vermerk: {vermerk}</span> : null}
                     {page.notes ? <span>Notiz: {page.notes}</span> : null}
                   </div>
-                  <PageAnalyzeButton
-                    pageId={page.id}
-                    objectType={page.objectType}
-                    analyzed={page.analysisStatus !== "wartet"}
-                  />
+                      </>
+                    );
+                  })()}
                   <details className="inline-editor crop-editor">
                     <summary>
                       <span>

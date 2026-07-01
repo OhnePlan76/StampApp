@@ -8,6 +8,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "export:intake": "node scripts/export-intake-images.mjs",
+    "analyze:intake": "node scripts/export-intake-images.mjs --vision=ollama",
+    "analyze:pages": "node scripts/analyze-pages.mjs",
+    "import:chatgpt": "node scripts/import-chatgpt-research.mjs",
+    "review:analysis": "node scripts/analysis-review-app.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
