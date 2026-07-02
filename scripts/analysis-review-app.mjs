@@ -12,9 +12,13 @@ const uploadApiPrefix = "/api/uploads/";
 const localUploadDir = path.join(process.cwd(), "public", "uploads");
 const packageExportDir = path.join(process.cwd(), "tmp_album_review", "chatgpt-pakete");
 const packageZipDir = path.join(process.cwd(), "tmp_album_review", "chatgpt-zips");
+const ocrTempDir = path.join(process.cwd(), "tmp_album_review", "ocr");
 const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 const ollamaModel = process.env.OLLAMA_VISION_MODEL || "llava:7b";
 const ollamaKeepAlive = process.env.OLLAMA_SESSION_KEEP_ALIVE || "30m";
+const tesseractCommand =
+  process.env.TESSERACT_CMD || "D:\\Program Files\\Tesseract-OCR\\tesseract.exe";
+const tesseractLanguages = process.env.TESSERACT_LANG || "eng";
 const execFileAsync = promisify(execFile);
 
 loadEnvFile(".env");
@@ -289,6 +293,9 @@ function reviewItems(page) {
         uncertain: String(item.uncertain || ""),
         missing: String(item.missing || ""),
         note: String(item.note || ""),
+        ocrText: String(item.ocrText || ""),
+        ocrProvider: String(item.ocrProvider || ""),
+        ocrLanguages: String(item.ocrLanguages || ""),
         confidence: Number.isFinite(Number(item.confidence)) ? Number(item.confidence) : null,
         needsExpert: Boolean(item.needsExpert),
         x: Number.isFinite(Number(item.x)) ? Number(item.x) : "",
@@ -766,6 +773,10 @@ function clientScript() {
   const packageStatus = document.querySelector("[data-package-status]");
   const enrichButtons = Array.from(document.querySelectorAll("[data-ollama-enrich]"));
   const enrichStatus = document.querySelector("[data-ollama-enrich-status]");
+  const ocrButtons = Array.from(document.querySelectorAll("[data-ocr-active]"));
+  const ocrStatus = document.querySelector("[data-ocr-status]");
+  const suggestButtons = Array.from(document.querySelectorAll("[data-suggest-stamps]"));
+  const suggestStatus = document.querySelector("[data-suggest-status]");
   const markStage = document.querySelector("[data-mark-stage]");
   const overlayLayer = document.querySelector("[data-overlay-layer]");
   const cropPreview = document.querySelector("[data-crop-preview]");
@@ -892,6 +903,10 @@ function clientScript() {
         <label class="wide field-readable"><span>Detailbeschreibung</span><input class="input" name="itemReadable_\${index}" data-field="readable" placeholder="Land; Nominale; Motiv; Inschrift; Zeitraum; Zustand" /></label>
         <label class="wide field-uncertain"><span>Unsichere Lesung</span><input class="input" name="itemUncertain_\${index}" data-field="uncertain" placeholder="nicht sicher lesbare oder vermutete Angaben" /></label>
         <label class="wide field-missing"><span>Abgleich / offen</span><input class="input" name="itemMissing_\${index}" data-field="missing" placeholder="Katalognummer, Ausgabe, Zaehnung, Wasserzeichen, DB-Abgleich" /></label>
+        <input type="hidden" name="itemNote_\${index}" data-field="note" />
+        <input type="hidden" name="itemOcrText_\${index}" data-field="ocrText" />
+        <input type="hidden" name="itemOcrProvider_\${index}" data-field="ocrProvider" />
+        <input type="hidden" name="itemOcrLanguages_\${index}" data-field="ocrLanguages" />
         <button class="delete-item-button" type="button" data-delete-item title="Nummer loeschen">x</button>
         <div class="wide coord-row">
           <label><span>x %</span><input class="input" name="itemX_\${index}" data-field="x" /></label>
@@ -964,6 +979,9 @@ function clientScript() {
       uncertain: rowField(row, "uncertain")?.value || "",
       missing: rowField(row, "missing")?.value || "",
       note: rowField(row, "note")?.value || "",
+      ocrText: rowField(row, "ocrText")?.value || "",
+      ocrProvider: rowField(row, "ocrProvider")?.value || "",
+      ocrLanguages: rowField(row, "ocrLanguages")?.value || "",
       x: rowField(row, "x")?.value || "",
       y: rowField(row, "y")?.value || "",
       w: rowField(row, "w")?.value || "",
@@ -1038,6 +1056,149 @@ function clientScript() {
       .filter((entry) => entry.number && entry.cropImageData);
   }
 
+  function suggestStampBoxes() {
+    const image = markStage?.querySelector("img");
+
+    if (!image || !image.naturalWidth || !image.naturalHeight) {
+      return [];
+    }
+
+    const canvas = document.createElement("canvas");
+    const maxSide = 360;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (!ctx) return [];
+
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const gray = new Uint8Array(width * height);
+
+    for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+      gray[p] = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+    }
+
+    const edges = new Uint8Array(width * height);
+    const threshold = 34;
+
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const index = y * width + x;
+        const dx = Math.abs(gray[index + 1] - gray[index - 1]);
+        const dy = Math.abs(gray[index + width] - gray[index - width]);
+
+        if (dx + dy > threshold) edges[index] = 1;
+      }
+    }
+
+    const visited = new Uint8Array(width * height);
+    const boxes = [];
+
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const start = y * width + x;
+        if (!edges[start] || visited[start]) continue;
+
+        const queue = [start];
+        visited[start] = 1;
+        let minX = x;
+        let maxX = x;
+        let minY = y;
+        let maxY = y;
+        let count = 0;
+
+        for (let q = 0; q < queue.length; q += 1) {
+          const current = queue[q];
+          const cx = current % width;
+          const cy = Math.floor(current / width);
+          count += 1;
+          minX = Math.min(minX, cx);
+          maxX = Math.max(maxX, cx);
+          minY = Math.min(minY, cy);
+          maxY = Math.max(maxY, cy);
+
+          const neighbors = [current - 1, current + 1, current - width, current + width];
+          for (const next of neighbors) {
+            if (next < 0 || next >= edges.length || visited[next] || !edges[next]) continue;
+            visited[next] = 1;
+            queue.push(next);
+          }
+        }
+
+        const bw = maxX - minX + 1;
+        const bh = maxY - minY + 1;
+        const area = bw * bh;
+        const imageArea = width * height;
+        const ratio = bw / Math.max(1, bh);
+
+        if (
+          count >= 18 &&
+          area >= imageArea * 0.002 &&
+          area <= imageArea * 0.22 &&
+          bw >= width * 0.035 &&
+          bh >= height * 0.035 &&
+          ratio >= 0.35 &&
+          ratio <= 2.4
+        ) {
+          const pad = 3;
+          boxes.push({
+            x: Math.max(0, ((minX - pad) / width) * 100),
+            y: Math.max(0, ((minY - pad) / height) * 100),
+            w: Math.min(100, ((bw + pad * 2) / width) * 100),
+            h: Math.min(100, ((bh + pad * 2) / height) * 100),
+            area,
+          });
+        }
+      }
+    }
+
+    return boxes
+      .sort((a, b) => b.area - a.area)
+      .filter((box, index, all) =>
+        all.findIndex((other) =>
+          Math.abs(other.x - box.x) < 3 &&
+          Math.abs(other.y - box.y) < 3 &&
+          Math.abs(other.w - box.w) < 5 &&
+          Math.abs(other.h - box.h) < 5
+        ) === index
+      )
+      .slice(0, 24);
+  }
+
+  function applySuggestedStampBoxes() {
+    const boxes = suggestStampBoxes();
+
+    if (boxes.length === 0) {
+      if (suggestStatus) {
+        suggestStatus.textContent = "Keine klaren Rechteckvorschlaege gefunden.";
+        suggestStatus.classList.add("active");
+      }
+      return;
+    }
+
+    for (const box of boxes) {
+      const row = reusableInitialRow() || addItem();
+      if (!row) continue;
+      rowField(row, "status").value = "unsicher";
+      rowField(row, "x").value = round(box.x);
+      rowField(row, "y").value = round(box.y);
+      rowField(row, "w").value = round(box.w);
+      rowField(row, "h").value = round(box.h);
+      rowField(row, "uncertain").value = appendUniqueText(
+        rowField(row, "uncertain").value,
+        "Automatischer Markierungsvorschlag; bitte Rahmen pruefen",
+      );
+    }
+
+    if (suggestStatus) {
+      suggestStatus.textContent = boxes.length + " Vorschlag" + (boxes.length === 1 ? "" : "e") + " eingefuegt.";
+      suggestStatus.classList.add("active");
+    }
+    renderMarkOverlay();
+  }
+
   function applyEnrichmentToRow(row, enrichment) {
     if (!row || !enrichment) return;
     const fields = ["label", "readable", "uncertain", "missing"];
@@ -1050,6 +1211,52 @@ function clientScript() {
         input.value = value.trim();
       }
     });
+
+    renderMarkOverlay();
+  }
+
+  function appendUniqueText(current, next) {
+    const existing = String(current || "").trim();
+    const addition = String(next || "").trim();
+
+    if (!addition) return existing;
+    if (!existing) return addition;
+    if (existing.toLowerCase().includes(addition.toLowerCase())) return existing;
+
+    return existing + "; " + addition;
+  }
+
+  function applyOcrToRow(row, ocr) {
+    if (!row || !ocr) return;
+
+    const text = String(ocr.text || "").trim();
+    const lines = Array.isArray(ocr.lines) ? ocr.lines.filter(Boolean) : [];
+    const compact = lines.slice(0, 8).join("; ") || text.replace(/\\s+/g, " ").trim();
+    const readable = rowField(row, "readable");
+    const uncertain = rowField(row, "uncertain");
+    const note = rowField(row, "note");
+    const ocrText = rowField(row, "ocrText");
+    const ocrProvider = rowField(row, "ocrProvider");
+    const ocrLanguages = rowField(row, "ocrLanguages");
+
+    if (readable && compact) {
+      readable.value = appendUniqueText(readable.value, "OCR-Hinweis: " + compact);
+    }
+
+    if (uncertain) {
+      uncertain.value = appendUniqueText(
+        uncertain.value,
+        "OCR ist unsicher und muss visuell geprueft werden",
+      );
+    }
+
+    if (note) {
+      note.value = appendUniqueText(note.value, "ocr:tesseract");
+    }
+
+    if (ocrText) ocrText.value = text;
+    if (ocrProvider) ocrProvider.value = ocr.provider || "tesseract";
+    if (ocrLanguages) ocrLanguages.value = ocr.languages || "";
 
     renderMarkOverlay();
   }
@@ -1328,6 +1535,66 @@ function clientScript() {
   }
 
   enrichButtons.forEach((button) => button.addEventListener("click", enrichActiveRow));
+  suggestButtons.forEach((button) => button.addEventListener("click", applySuggestedStampBoxes));
+
+  async function ocrActiveRow() {
+    const row = activeRow || addItem();
+    const cropDataUrl = activeCropDataUrl();
+
+    if (!row || !cropDataUrl) {
+      window.alert("Bitte zuerst eine Nummer auswaehlen und im Bewertungsbild einen Rahmen ziehen.");
+      return;
+    }
+
+    const pageId = document.querySelector("[data-page-id]")?.value;
+    const body = new URLSearchParams();
+    body.set("cropImageData", cropDataUrl);
+    body.set("reviewItemsDraft", JSON.stringify(collectReviewItems()));
+    body.set("activeNumber", rowField(row, "number")?.value || "");
+
+    try {
+      ocrButtons.forEach((button) => {
+        button.disabled = true;
+        button.textContent = "OCR laeuft ...";
+      });
+      if (ocrStatus) {
+        ocrStatus.textContent = "Tesseract liest die aktive Markierung ...";
+        ocrStatus.classList.add("active");
+      }
+
+      const response = await fetch("/pages/" + encodeURIComponent(pageId) + "/ocr-review-item", {
+        method: "POST",
+        body,
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.error || "OCR fehlgeschlagen.");
+      }
+
+      applyOcrToRow(row, payload.ocr);
+      if (ocrStatus) {
+        const count = Array.isArray(payload.ocr?.lines) ? payload.ocr.lines.length : 0;
+        ocrStatus.textContent = count > 0 ? "OCR-Hinweis eingetragen. Bitte pruefen." : "OCR fertig, aber ohne sicheren Text.";
+      }
+    } catch (error) {
+      if (ocrStatus) {
+        ocrStatus.textContent = error instanceof Error ? error.message : "OCR fehlgeschlagen.";
+      }
+      window.alert(error instanceof Error ? error.message : "OCR fehlgeschlagen.");
+    } finally {
+      ocrButtons.forEach((button) => {
+        button.disabled = false;
+        button.textContent = "OCR lesen";
+      });
+    }
+  }
+
+  ocrButtons.forEach((button) => button.addEventListener("click", ocrActiveRow));
 
 })();
 </script>`;
@@ -1431,7 +1698,7 @@ function renderPageDetail(page, filterStatus) {
               <img alt="Ausschnitt fuer das Exportpaket" />
               <div>
                 <strong>Aktive Markierung</strong>
-                <span class="muted">Diese Vorschau wird als Bilddatei ins Paket geschrieben und an Ollama uebergeben.</span>
+                <span class="muted">Diese Vorschau wird als Bilddatei ins Paket geschrieben und kann vorher per OCR gelesen werden.</span>
               </div>
             </div>
           </div>
@@ -1441,8 +1708,10 @@ function renderPageDetail(page, filterStatus) {
           <div class="muted">Zeile auswaehlen, dann im Bewertungsbild ein Rechteck aufziehen. Jede Nummer bekommt eine eigene Farbe; Lesbarkeit wird in der Zeile dokumentiert.</div>
           <div class="actions" style="margin-top:10px">
             <button class="tiny-button" type="button" data-add-item>+ Nummer hinzufuegen</button>
-            <button class="tiny-button" type="button" data-ollama-enrich>Aktive Markierung fuellen</button>
-            <span class="dialog-status" data-ollama-enrich-status></span>
+            <button class="tiny-button" type="button" data-suggest-stamps>Marken vorschlagen</button>
+            <button class="tiny-button" type="button" data-ocr-active>OCR lesen</button>
+            <span class="dialog-status" data-suggest-status></span>
+            <span class="dialog-status" data-ocr-status></span>
           </div>
         </div>
         <div class="image-dialog-panel">
@@ -1604,6 +1873,10 @@ function renderReviewItemRow(item, index) {
         <input class="input" name="itemMissing_${index}" data-field="missing" value="${escapeHtml(item.missing)}" placeholder="Katalognummer, Ausgabe, Zaehnung, Wasserzeichen, DB-Abgleich" />
       </label>
       <button class="delete-item-button" type="button" data-delete-item title="Nummer loeschen">x</button>
+      <input type="hidden" name="itemNote_${index}" data-field="note" value="${escapeHtml(item.note || "")}" />
+      <input type="hidden" name="itemOcrText_${index}" data-field="ocrText" value="${escapeHtml(item.ocrText || "")}" />
+      <input type="hidden" name="itemOcrProvider_${index}" data-field="ocrProvider" value="${escapeHtml(item.ocrProvider || "")}" />
+      <input type="hidden" name="itemOcrLanguages_${index}" data-field="ocrLanguages" value="${escapeHtml(item.ocrLanguages || "")}" />
       <input type="hidden" name="itemConfidence_${index}" value="${escapeHtml(item.confidence ?? "")}" />
       <input type="hidden" name="itemNeedsExpert_${index}" value="${escapeHtml(item.needsExpert ? "true" : "false")}" />
       <div class="wide coord-row">
@@ -1694,6 +1967,9 @@ function parseReviewItems(form) {
     const uncertain = formText(form, `itemUncertain_${index}`);
     const missing = formText(form, `itemMissing_${index}`);
     const note = formText(form, `itemNote_${index}`);
+    const ocrText = formText(form, `itemOcrText_${index}`);
+    const ocrProvider = formText(form, `itemOcrProvider_${index}`);
+    const ocrLanguages = formText(form, `itemOcrLanguages_${index}`);
     const confidenceValue = formText(form, `itemConfidence_${index}`);
     const confidence = Number(confidenceValue);
     const needsExpert = formText(form, `itemNeedsExpert_${index}`) === "true";
@@ -1708,6 +1984,7 @@ function parseReviewItems(form) {
       uncertain ||
       missing ||
       note ||
+      ocrText ||
       hasBox;
 
     if (!hasContent || number <= 0) continue;
@@ -1724,6 +2001,9 @@ function parseReviewItems(form) {
       uncertain,
         missing,
         note,
+        ocrText,
+        ocrProvider,
+        ocrLanguages,
         confidence: Number.isFinite(confidence) ? confidence : null,
         needsExpert,
         x,
@@ -1758,6 +2038,9 @@ function parseDraftReviewItems(value) {
         uncertain: String(item.uncertain || ""),
         missing: String(item.missing || ""),
         note: String(item.note || ""),
+        ocrText: String(item.ocrText || ""),
+        ocrProvider: String(item.ocrProvider || ""),
+        ocrLanguages: String(item.ocrLanguages || ""),
         x: item.x === "" ? "" : Number(item.x),
         y: item.y === "" ? "" : Number(item.y),
         w: item.w === "" ? "" : Number(item.w),
@@ -1771,6 +2054,7 @@ function parseDraftReviewItems(value) {
           item.uncertain ||
           item.missing ||
           item.note ||
+          item.ocrText ||
           Number(item.w) > 0 ||
           Number(item.h) > 0,
       );
@@ -1839,6 +2123,7 @@ function packagePromptText({
     "- Keine definitive Katalognummer behaupten, wenn sie nicht sicher aus Bild und Abgleich hervorgeht.",
     "- Keine Wertpruefung oder Markttriage ausgeben; das folgt spaeter im DB-Gesamtabgleich.",
     "- Wenn der Ausschnitt zu unscharf/klein ist, klar sagen, welche Nachaufnahme noetig ist.",
+    "- OCR-Hinweise sind nur Vorschlaege und koennen falsch sein; bitte immer visuell gegen das Bild pruefen.",
     "",
     "Gewuenschtes Antwortformat:",
     "Sichtbare Schrift:",
@@ -1860,6 +2145,7 @@ function packagePromptText({
     activeItem?.readable ? `Bisherige Details: ${activeItem.readable}` : "",
     activeItem?.uncertain ? `Bisher unsicher: ${activeItem.uncertain}` : "",
     activeItem?.missing ? `Bisher offen: ${activeItem.missing}` : "",
+    activeItem?.ocrText ? `OCR-Vorschlag (${activeItem.ocrProvider || "tesseract"} ${activeItem.ocrLanguages || ""}): ${activeItem.ocrText}` : "",
     "",
     "Dateien im Paket:",
     `- ${cropFile}: der markierte Ausschnitt fuer die Detailanalyse`,
@@ -1880,6 +2166,7 @@ function packageCollectionPromptText({ page, targetType, note, items, pageFile }
     "- Unsichere Lesungen mit Fragezeichen markieren.",
     "- Keine definitive Katalognummer behaupten, wenn sie nicht sicher aus Bild und Abgleich hervorgeht.",
     "- Keine Wertpruefung oder Markttriage ausgeben; das folgt spaeter im DB-Gesamtabgleich.",
+    "- OCR-Hinweise sind nur Vorschlaege und koennen falsch sein; bitte immer visuell gegen die Bilder pruefen.",
     "",
     "Gewuenschtes Antwortformat pro Nummer:",
     "Nummer:",
@@ -1896,7 +2183,11 @@ function packageCollectionPromptText({ page, targetType, note, items, pageFile }
     note ? `Notiz/Auftrag: ${note}` : "Notiz/Auftrag: keine",
     "",
     "Enthaltene Markierungen:",
-    ...items.map((item) => `- Nr. ${item.number}: ${item.cropFile}, ${item.metadataFile}, ${item.promptFile}`),
+    ...items.map((item) => {
+      const ocrHint = item.ocrText ? `, OCR-Vorschlag: ${item.ocrText}` : "";
+
+      return `- Nr. ${item.number}: ${item.cropFile}, ${item.metadataFile}, ${item.promptFile}${ocrHint}`;
+    }),
     `- ${pageFile}: die vollstaendige Seite als Kontext`,
     "- index_metadata.json: Uebersicht ueber das Sammelpaket",
   ].join("\n");
@@ -2065,6 +2356,9 @@ function mergeImportedReviewItems(existingItems, importedItems) {
       uncertain: "",
       missing: "",
       note: "",
+      ocrText: "",
+      ocrProvider: "",
+      ocrLanguages: "",
       x: "",
       y: "",
       w: "",
@@ -2133,6 +2427,93 @@ async function enrichReviewItemWithOllama({ page, cropImage, activeNumber, activ
       outputText,
     },
   };
+}
+
+function normalizeOcrText(text) {
+  return String(text || "")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+async function runTesseractOcr(cropImage) {
+  await mkdir(ocrTempDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const inputPath = path.join(ocrTempDir, `ocr-${stamp}.png`);
+
+  await writeFile(inputPath, cropImage.bytes);
+
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      tesseractCommand,
+      [
+        inputPath,
+        "stdout",
+        "-l",
+        tesseractLanguages,
+        "--psm",
+        "6",
+        "--oem",
+        "1",
+      ],
+      {
+        timeout: 30000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const text = normalizeOcrText(stdout);
+
+    return {
+      provider: "tesseract",
+      command: tesseractCommand,
+      languages: tesseractLanguages,
+      text,
+      lines: text ? text.split("\n") : [],
+      stderr: String(stderr || "").trim(),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    throw new Error(`Tesseract OCR fehlgeschlagen: ${message}`);
+  }
+}
+
+async function handleOcrReviewItem(req, res, pageId) {
+  const form = await readForm(req);
+  const cropImage = imageDataFromForm(formText(form, "cropImageData"));
+  const activeNumber = formText(form, "activeNumber");
+
+  if (!cropImage) {
+    sendJson(res, 400, { error: "Bitte zuerst eine Markierung im Bewertungsbild aufziehen." });
+    return;
+  }
+
+  const page = await prisma.page.findUnique({
+    where: { id: pageId },
+    select: { id: true },
+  });
+
+  if (!page) {
+    sendJson(res, 404, { error: "Seite nicht gefunden." });
+    return;
+  }
+
+  try {
+    const ocr = await runTesseractOcr(cropImage);
+
+    sendJson(res, 200, {
+      ok: true,
+      activeNumber,
+      ocr,
+    });
+  } catch (error) {
+    sendJson(res, 502, {
+      error: error instanceof Error ? error.message : "OCR fehlgeschlagen.",
+    });
+  }
 }
 
 async function handleEnrichReviewItem(req, res, pageId) {
@@ -2376,6 +2757,7 @@ async function handleExportPackage(req, res, pageId) {
         items: packageItems.map(({ item, number, cropFile, metadataFile, promptFile }) => ({
           number,
           label: item.label,
+          ocrText: item.ocrText,
           cropFile,
           metadataFile,
           promptFile,
@@ -2635,6 +3017,13 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && enrichMatch) {
       await handleEnrichReviewItem(req, res, decodeURIComponent(enrichMatch[1]));
+      return;
+    }
+
+    const ocrMatch = url.pathname.match(/^\/pages\/([^/]+)\/ocr-review-item$/);
+
+    if (req.method === "POST" && ocrMatch) {
+      await handleOcrReviewItem(req, res, decodeURIComponent(ocrMatch[1]));
       return;
     }
 

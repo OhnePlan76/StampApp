@@ -28,6 +28,8 @@ laeuft nicht mehr in der Webapp.
 
 Ollama ist nur noch optional fuer lokale Textvorfuellung/OCR-aehnliche Hinweise
 in der Review-Oberflaeche gedacht. Es ist nicht mehr die Hauptanalyse.
+Tesseract OCR kann markierte Ausschnitte leichtgewichtig lesen und als
+unsicheren Vorschlag in das ChatGPT-Paket schreiben.
 
 ## Lokal starten
 
@@ -49,6 +51,10 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
 # Optional fuer lokale Textvorfuellung in der Review-Oberflaeche.
 OLLAMA_VISION_MODEL="llava:7b"
 OLLAMA_SESSION_KEEP_ALIVE="30m"
+
+# Optional fuer lokale OCR in der Review-Oberflaeche.
+TESSERACT_CMD="D:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+TESSERACT_LANG="eng"
 
 R2_ACCOUNT_ID="cloudflare-account-id"
 R2_ENDPOINT="https://cloudflare-account-id.r2.cloudflarestorage.com"
@@ -124,6 +130,11 @@ Alternativ per Windows-Starter:
 Die Review-Oberflaeche speichert keine neuen Bilddaten zurueck. Gespeichert
 werden Markierungen, Status, Notizen, Review-Metadaten und importierte
 Recherchekandidaten in den vorhandenen DB-Feldern.
+
+Der Button `OCR lesen` nutzt Tesseract lokal auf der aktiven Markierung und
+traegt das Ergebnis als unsicheren OCR-Hinweis ein. Falls deutsche Sprachdaten
+installiert sind, kann `TESSERACT_LANG="deu+eng"` gesetzt werden. Ohne deutsche
+Sprachdaten funktioniert der Standard mit `eng`.
 
 ## ChatGPT-Import
 
