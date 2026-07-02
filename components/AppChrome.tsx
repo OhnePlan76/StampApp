@@ -50,13 +50,11 @@ export function AppChrome() {
   return (
     <>
       <header className="app-topbar">
-        <Link className="brand-mark" href="/" aria-label="StampCollector AI">
+        <Link className="brand-mark" href="/" aria-label="StampCollector">
           <span className="brand-icon">
             <StampIcon />
           </span>
-          <span>
-            StampCollector <b>AI</b>
-          </span>
+          <span>StampCollector</span>
         </Link>
         <div className="chrome-actions">
           <a

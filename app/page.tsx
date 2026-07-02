@@ -233,7 +233,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 ? "Vorhandene Alben finden und weiterbearbeiten."
                 : activeView === "activity"
                   ? "Letzte Seiten und Einzelpruefungen im Blick behalten."
-                  : "Anlegen, Scannen und bewerten."}
+                  : "Alben, Seiten, Marken und Belege erfassen."}
           </span>
         </div>
       </header>
@@ -297,7 +297,7 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
         <div className="stat-card">
           <strong>{compactNumber(stampCount)}</strong>
-          <span>Einzelpruefungen</span>
+          <span>Recherchekandidaten</span>
         </div>
         <div className="stat-card">
           <strong>{compactNumber(expertCount)}</strong>

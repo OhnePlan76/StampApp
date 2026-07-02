@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AnalyzeButton } from "@/components/AnalyzeButton";
 
 type StampRow = {
   id: string;
@@ -134,10 +133,6 @@ export function StampTable({ stamps, showAlbum = false }: StampTableProps) {
                   </div>
                 ) : null}
                 <div className="stamp-card-note">{display(stamp.catalogHint)}</div>
-                <AnalyzeButton
-                  stampId={stamp.id}
-                  analyzed={stamp.valueClass !== null}
-                />
               </div>
             </article>
           );
@@ -159,7 +154,6 @@ export function StampTable({ stamps, showAlbum = false }: StampTableProps) {
               <th>Wertklasse</th>
               <th>Wert von/bis</th>
               <th>Pruefbedarf</th>
-              <th>Analyse</th>
             </tr>
           </thead>
           <tbody>
@@ -197,12 +191,6 @@ export function StampTable({ stamps, showAlbum = false }: StampTableProps) {
                   </td>
                   <td>{valueRange(stamp.valueMin, stamp.valueMax)}</td>
                   <td>{stamp.needsExpert ? "ja" : "nein"}</td>
-                  <td>
-                    <AnalyzeButton
-                      stampId={stamp.id}
-                      analyzed={stamp.valueClass !== null}
-                    />
-                  </td>
                 </tr>
               );
             })}

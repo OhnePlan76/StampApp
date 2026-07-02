@@ -54,11 +54,11 @@ function albumStatusLabel(status: string) {
 
 function pageAnalysisStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    wartet: "wartet",
-    laeuft: "laeuft",
-    sichtung: "Sichtung erforderlich",
-    fertig: "fertig",
-    fehler: "fehlgeschlagen",
+    wartet: "bereit fuer Sichtung",
+    laeuft: "in Bearbeitung",
+    sichtung: "Sichtung",
+    fertig: "eingespielt",
+    fehler: "Pruefung offen",
   };
 
   return labels[status] || status;
@@ -178,7 +178,7 @@ export default async function AlbumPage({
   const coverCount = album.pages.filter((page) => page.objectType === "beleg").length;
   const openPageCount = album.pages.filter((page) => page.status === "offen").length;
   const donePageCount = album.pages.filter((page) => page.status === "fertig").length;
-  const queuedAnalysisCount = album.pages.filter(
+  const queuedReviewCount = album.pages.filter(
     (page) => page.analysisStatus === "wartet" || page.analysisStatus === "laeuft",
   ).length;
   const reviewPageCount = album.pages.filter(
@@ -199,8 +199,8 @@ export default async function AlbumPage({
     },
     {
       href: `/alben/${album.id}/seiten`,
-      title: "Hintergrundauswertung",
-      meta: `${queuedAnalysisCount} Objekte`,
+      title: "Sichtung vorbereiten",
+      meta: `${queuedReviewCount} Objekte`,
     },
     {
       href: `/alben/${album.id}/seiten`,
@@ -317,7 +317,7 @@ export default async function AlbumPage({
             <div className="section-heading app-section-heading">
               <div>
                 <h2>Arbeitsqueue</h2>
-                <div className="muted">Mobile Erfassung zuerst, Auswertung und Sichtung danach.</div>
+                <div className="muted">Mobile Erfassung zuerst, Markierung und ChatGPT-Paket danach.</div>
               </div>
             </div>
             <div className="compact-list">
@@ -432,7 +432,7 @@ export default async function AlbumPage({
             <div className="section-heading app-section-heading">
               <div>
                 <h2>Seiten bearbeiten</h2>
-                <div className="muted">Typ, Nummer, Status, Qualitaet, Auswertung und Notiz.</div>
+                <div className="muted">Typ, Nummer, Status, Qualitaet, Sichtung und Notiz.</div>
               </div>
             </div>
             {album.pages.length === 0 ? (
@@ -777,8 +777,8 @@ export default async function AlbumPage({
                       </span>
                       <small>
                         {page.objectType === "beleg"
-                          ? "wenn Beleganalyse eine Marke nicht klaert"
-                          : "bei KI-Hinweis oder Nutzerwunsch"}
+                          ? "wenn ein Beleg eine auffaellige Frankatur enthaelt"
+                          : "bei auffaelliger Passage oder Nutzerwunsch"}
                       </small>
                     </summary>
                   <form action={uploadStampCrop} className="stamp-capture-form">
@@ -838,7 +838,7 @@ export default async function AlbumPage({
             <div className="muted">
               {expertOnly
                 ? "Gefiltert: Wertklasse ab 4 und Pruefbedarf ja"
-                : "Nur manuell angelegte Ausnahmen und KI-Pruefkandidaten"}
+                : "Manuell angelegte Ausnahmen und importierte Recherchekandidaten"}
             </div>
           </div>
           <div className="toolbar">
