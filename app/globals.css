@@ -1390,6 +1390,57 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
+.review-candidate-section {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.review-candidate-list,
+.review-item-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.review-candidate-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: 12px;
+}
+
+.review-candidate-top,
+.review-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.review-candidate-top h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.review-item-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.review-item-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.review-item-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .album-table-desktop,
 .stamp-table-desktop {
   display: none;

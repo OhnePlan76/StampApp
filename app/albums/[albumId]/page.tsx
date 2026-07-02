@@ -22,6 +22,21 @@ type AlbumPageProps = {
     | { actionError?: string; filter?: string; view?: string };
 };
 
+type ReviewItem = {
+  number: number;
+  status: string;
+  label: string;
+  readable: string;
+  uncertain: string;
+  missing: string;
+  note: string;
+  ocrText: string;
+  x: string | number;
+  y: string | number;
+  w: string | number;
+  h: string | number;
+};
+
 function pageStatusLabel(status: string) {
   const labels: Record<string, string> = {
     offen: "Offen",
@@ -64,6 +79,62 @@ function pageAnalysisStatusLabel(status: string) {
   return labels[status] || status;
 }
 
+function reviewItemsFromRaw(analysisRaw: unknown): ReviewItem[] {
+  const raw =
+    analysisRaw && typeof analysisRaw === "object" && !Array.isArray(analysisRaw)
+      ? (analysisRaw as { reviewItems?: unknown })
+      : {};
+
+  if (!Array.isArray(raw.reviewItems)) return [];
+
+  return raw.reviewItems
+    .filter((item) => item && typeof item === "object")
+    .map((item, index) => {
+      const value = item as Record<string, unknown>;
+
+      return {
+        number: Number.isFinite(Number(value.number)) ? Number(value.number) : index + 1,
+        status: typeof value.status === "string" ? value.status : "unsicher",
+        label: typeof value.label === "string" ? value.label : "",
+        readable: typeof value.readable === "string" ? value.readable : "",
+        uncertain: typeof value.uncertain === "string" ? value.uncertain : "",
+        missing: typeof value.missing === "string" ? value.missing : "",
+        note: typeof value.note === "string" ? value.note : "",
+        ocrText: typeof value.ocrText === "string" ? value.ocrText : "",
+        x: typeof value.x === "string" || typeof value.x === "number" ? value.x : "",
+        y: typeof value.y === "string" || typeof value.y === "number" ? value.y : "",
+        w: typeof value.w === "string" || typeof value.w === "number" ? value.w : "",
+        h: typeof value.h === "string" || typeof value.h === "number" ? value.h : "",
+      };
+    })
+    .filter(
+      (item) =>
+        item.label ||
+        item.readable ||
+        item.uncertain ||
+        item.missing ||
+        item.note ||
+        item.ocrText ||
+        Number(item.w) > 0 ||
+        Number(item.h) > 0,
+    )
+    .sort((a, b) => a.number - b.number);
+}
+
+function reviewItemTitle(item: ReviewItem) {
+  return item.label || item.readable || item.ocrText || `Markierung ${item.number}`;
+}
+
+function reviewItemMeta(item: ReviewItem) {
+  return [
+    item.readable ? `Details: ${item.readable}` : null,
+    item.ocrText ? `OCR: ${item.ocrText}` : null,
+    item.uncertain ? `Unsicher: ${item.uncertain}` : null,
+    item.missing ? `Offen: ${item.missing}` : null,
+    item.note ? `Notiz: ${item.note}` : null,
+  ].filter((value): value is string => Boolean(value));
+}
+
 function compactPageVermerk(
   analysisRaw: unknown,
   analysisNotes: string | null,
@@ -75,6 +146,11 @@ function compactPageVermerk(
       : {};
   const hasResearchPackages =
     Array.isArray(raw.chatgptResearchPackages) && raw.chatgptResearchPackages.length > 0;
+  const reviewItemCount = reviewItemsFromRaw(analysisRaw).length;
+
+  if (reviewItemCount > 0 && stampCount === 0) {
+    return `${reviewItemCount} lokale Markierung${reviewItemCount === 1 ? "" : "en"} aus der Sichtung.`;
+  }
 
   if (hasResearchPackages || stampCount > 0) {
     return `${stampCount} Recherchekandidat${stampCount === 1 ? "" : "en"} fuer ChatGPT-Sichtung.`;
@@ -161,6 +237,12 @@ export default async function AlbumPage({
     .filter((stamp) =>
       expertOnly ? (stamp.valueClass ?? -1) >= 4 && stamp.needsExpert : true,
     );
+  const reviewPages = album.pages
+    .map((page) => ({
+      page,
+      items: reviewItemsFromRaw(page.analysisRaw),
+    }))
+    .filter(({ items }) => items.length > 0);
   const allStamps = album.pages.flatMap((page) => page.stamps);
   const stampEditors = album.pages.flatMap((page) =>
     page.stamps.map((stamp) => ({
@@ -857,6 +939,61 @@ export default async function AlbumPage({
             </a>
           </div>
         </div>
+        {reviewPages.length > 0 ? (
+          <section className="review-candidate-section">
+            <div className="section-heading app-section-heading">
+              <div>
+                <h3>Lokale Markierungen aus der Sichtung</h3>
+                <div className="muted">
+                  OCR-Hinweise und Markierungsnotizen aus dem lokalen Reviewtool.
+                </div>
+              </div>
+            </div>
+            <div className="review-candidate-list">
+              {reviewPages.map(({ page, items }) => (
+                <article className="review-candidate-card" key={page.id}>
+                  <div className="review-candidate-top">
+                    <div>
+                      <h4>{pageItemLabel(page.objectType, page.pageNo)}</h4>
+                      <div className="muted">
+                        {items.length} Markierung{items.length === 1 ? "" : "en"}
+                      </div>
+                    </div>
+                    <Link className="secondary-button compact" href={`/alben/${album.id}/seiten#seite-${page.id}`}>
+                      Seite ansehen
+                    </Link>
+                  </div>
+                  <div className="review-item-stack">
+                    {items.map((item) => {
+                      const meta = reviewItemMeta(item);
+
+                      return (
+                        <div className="review-item-row" key={`${page.id}-${item.number}`}>
+                          <span className="value-badge">{item.number}</span>
+                          <div>
+                            <strong>{reviewItemTitle(item)}</strong>
+                            {meta.length > 0 ? (
+                              <div className="meta-strip">
+                                {meta.slice(0, 5).map((entry) => (
+                                  <span key={entry}>{entry}</span>
+                                ))}
+                              </div>
+                            ) : null}
+                            {Number(item.w) > 0 && Number(item.h) > 0 ? (
+                              <div className="muted">
+                                Rahmen: x {item.x || "-"} / y {item.y || "-"} / b {item.w} / h {item.h}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <StampTable stamps={stamps} />
       </section>
       ) : null}
