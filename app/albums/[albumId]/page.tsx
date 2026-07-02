@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { CameraCaptureField } from "@/components/CameraCaptureField";
 import { PageScanForm } from "@/components/PageScanForm";
@@ -163,6 +164,38 @@ function reviewItemMeta(item: ReviewItem) {
     item.missing ? `Offen: ${item.missing}` : null,
     item.note ? `Notiz: ${item.note}` : null,
   ].filter((value): value is string => Boolean(value));
+}
+
+function reviewItemHasBox(item: ReviewItem) {
+  return Number(item.w) > 0 && Number(item.h) > 0;
+}
+
+function reviewItemColor(number: number) {
+  const colors = [
+    "#d64b2a",
+    "#2563eb",
+    "#17945a",
+    "#a855f7",
+    "#d97706",
+    "#0891b2",
+    "#be123c",
+    "#4f46e5",
+    "#65a30d",
+    "#7c2d12",
+  ];
+
+  return colors[Math.max(0, number - 1) % colors.length];
+}
+
+function reviewBoxStyle(item: ReviewItem): CSSProperties {
+  return {
+    borderColor: reviewItemColor(item.number),
+    color: reviewItemColor(item.number),
+    height: `${Number(item.h)}%`,
+    left: `${Number(item.x)}%`,
+    top: `${Number(item.y)}%`,
+    width: `${Number(item.w)}%`,
+  };
 }
 
 function compactPageVermerk(
@@ -993,29 +1026,63 @@ export default async function AlbumPage({
                       Seite ansehen
                     </Link>
                   </div>
+                  <div className="review-page-focus">
+                    <a
+                      className="review-page-image"
+                      href={page.imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <UploadImage
+                        className="review-page-image-media"
+                        src={page.imageUrl}
+                        alt={`Markierungen ${pageItemLabel(page.objectType, page.pageNo)}`}
+                        fallbackText="Bild fehlt"
+                      />
+                      <span className="review-page-overlay" aria-hidden="true">
+                        {items.filter(reviewItemHasBox).map((item) => (
+                          <span
+                            className="review-page-box"
+                            key={`${page.id}-box-${item.number}`}
+                            style={reviewBoxStyle(item)}
+                          >
+                            {item.number}
+                          </span>
+                        ))}
+                      </span>
+                    </a>
+                  </div>
+                  <h5 className="review-subtitle">Markeneinzelbetrachtung</h5>
                   <div className="review-item-stack">
                     {items.map((item) => {
                       const meta = reviewItemMeta(item);
 
                       return (
-                        <div className="review-item-row" key={`${page.id}-${item.number}`}>
-                          <span className="value-badge">{item.number}</span>
-                          <div>
+                        <details className="review-item-row" key={`${page.id}-${item.number}`} open>
+                          <summary>
+                            <span
+                              className="value-badge review-number-badge"
+                              style={{ background: reviewItemColor(item.number), color: "#ffffff" }}
+                            >
+                              {item.number}
+                            </span>
                             <strong>{reviewItemTitle(item)}</strong>
+                          </summary>
+                          <div className="review-item-detail">
                             {meta.length > 0 ? (
                               <div className="meta-strip">
-                                {meta.slice(0, 5).map((entry) => (
+                                {meta.slice(0, 10).map((entry) => (
                                   <span key={entry}>{entry}</span>
                                 ))}
                               </div>
                             ) : null}
-                            {Number(item.w) > 0 && Number(item.h) > 0 ? (
+                            {reviewItemHasBox(item) ? (
                               <div className="muted">
                                 Rahmen: x {item.x || "-"} / y {item.y || "-"} / b {item.w} / h {item.h}
                               </div>
                             ) : null}
                           </div>
-                        </div>
+                        </details>
                       );
                     })}
                   </div>

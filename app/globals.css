@@ -1425,8 +1425,58 @@ tr:last-child td {
   font-size: 1rem;
 }
 
+.review-page-focus {
+  display: grid;
+  gap: 8px;
+}
+
+.review-page-image {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  text-decoration: none;
+}
+
+.review-page-image-media {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 760px);
+  object-fit: contain;
+}
+
+.review-page-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.review-page-box {
+  position: absolute;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 26px;
+  min-height: 26px;
+  border: 3px solid currentColor;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 2px 5px;
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px #ffffff;
+}
+
+.review-subtitle {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
 .review-item-row {
-  grid-template-columns: auto minmax(0, 1fr);
   border-top: 1px solid var(--border);
   padding-top: 10px;
 }
@@ -1439,6 +1489,29 @@ tr:last-child td {
 .review-item-row strong {
   display: block;
   overflow-wrap: anywhere;
+}
+
+.review-item-row summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.review-item-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-number-badge {
+  box-shadow: none;
+}
+
+.review-item-detail {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 0 42px;
 }
 
 .album-table-desktop,
