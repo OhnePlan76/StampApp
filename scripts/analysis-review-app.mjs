@@ -2102,6 +2102,35 @@ async function zipDirectory(sourceDir, destinationZip) {
   ]);
 }
 
+function importableResultSchemaText(arrayMode = false) {
+  const item = {
+    activeNumber: 1,
+    label: "kurzes sichtbares Label",
+    readable: "sicher sichtbare Schrift, Nominale, Land/Gebiet, Motiv, Stempel",
+    uncertain: "unsichere Lesungen mit Fragezeichen",
+    missing: "offene Pruefpunkte, z. B. Zaehnung, Wasserzeichen, Rueckseite",
+    country: "Land/Gebiet oder null",
+    era: "Zeitraum/Epoche oder null",
+    denomination: "Nennwert/Waehrung oder null",
+    motive: "Motiv/Bildinhalt oder null",
+    usedState: "postfrisch|ungebraucht|gebraucht|Brief/Beleg|unklar",
+    condition: "sichtbarer Zustand, Maengel, Stempel, Falz, Gumminfo",
+    catalogHint: "vorsichtiger Katalog-/Ausgabehinweis ohne endgueltige Nummer",
+    valueClass: 0,
+    valueMin: null,
+    valueMax: null,
+    needsExpert: false,
+    confidence: 0.0,
+    requiredFollowUp: [
+      "none|front_detail|back_side|watermark_backlight|perforation_detail|postmark_detail|cover_context|better_photo",
+    ],
+    followUpReason: "warum Zusatzbild oder Pruefung noetig ist",
+    note: "kurze Begruendung der Wertklasse und naechster Schritt",
+  };
+
+  return JSON.stringify(arrayMode ? [item] : item, null, 2);
+}
+
 function packagePromptText({
   page,
   targetType,
@@ -2126,10 +2155,12 @@ function packagePromptText({
     "- OCR-Hinweise sind nur Vorschlaege und koennen falsch sein; bitte immer visuell gegen das Bild pruefen.",
     "",
     "Gewuenschtes Antwortformat:",
-    "Sichtbare Schrift:",
-    "Kurzlabel:",
-    "Einordnung:",
-    "Offen/Pruefpunkte:",
+    "1. Kurze menschenlesbare Einschaetzung.",
+    "2. Danach exakt ein importierbares JSON-Objekt in einem ```json Codeblock.",
+    "Keine Felder weglassen. Unbekannte Werte als null oder leeren String schreiben.",
+    "",
+    "Importierbares JSON-Schema:",
+    importableResultSchemaText(false),
     "",
     "Kontext:",
     `Album: ${page.album.name}`,
@@ -2169,11 +2200,12 @@ function packageCollectionPromptText({ page, targetType, note, items, pageFile }
     "- OCR-Hinweise sind nur Vorschlaege und koennen falsch sein; bitte immer visuell gegen die Bilder pruefen.",
     "",
     "Gewuenschtes Antwortformat pro Nummer:",
-    "Nummer:",
-    "Sichtbare Schrift:",
-    "Kurzlabel:",
-    "Einordnung:",
-    "Offen/Pruefpunkte:",
+    "1. Kurze menschenlesbare Einschaetzung pro Nummer.",
+    "2. Danach exakt ein importierbares JSON-Array in einem ```json Codeblock.",
+    "Keine Felder weglassen. Unbekannte Werte als null oder leeren String schreiben.",
+    "",
+    "Importierbares JSON-Schema:",
+    importableResultSchemaText(true),
     "",
     "Kontext:",
     `Album: ${page.album.name}`,
@@ -2335,6 +2367,22 @@ function importedResultItemsFromText(text) {
         uncertain: cleanEnrichmentText(object.uncertain ?? object.unsichereLesung ?? object.unsicher),
         missing: cleanEnrichmentText(object.missing ?? object.abgleichOffen ?? object.offen),
         note: cleanEnrichmentText(object.note ?? object.notiz ?? object.einordnung),
+        country: cleanEnrichmentText(object.country ?? object.land),
+        era: cleanEnrichmentText(object.era ?? object.epoche ?? object.zeitraum),
+        denomination: cleanEnrichmentText(object.denomination ?? object.nennwert),
+        motive: cleanEnrichmentText(object.motive ?? object.motiv),
+        usedState: cleanEnrichmentText(object.usedState ?? object.verwendung),
+        condition: cleanEnrichmentText(object.condition ?? object.zustand),
+        catalogHint: cleanEnrichmentText(object.catalogHint ?? object.kataloghinweis),
+        valueClass: Number.isFinite(Number(object.valueClass)) ? Math.max(0, Math.min(5, Number(object.valueClass))) : null,
+        valueMin: Number.isFinite(Number(object.valueMin)) ? Number(object.valueMin) : null,
+        valueMax: Number.isFinite(Number(object.valueMax)) ? Number(object.valueMax) : null,
+        requiredFollowUp: Array.isArray(object.requiredFollowUp)
+          ? object.requiredFollowUp.map(cleanEnrichmentText).filter(Boolean)
+          : cleanEnrichmentText(object.requiredFollowUp)
+            ? [cleanEnrichmentText(object.requiredFollowUp)]
+            : [],
+        followUpReason: cleanEnrichmentText(object.followUpReason ?? object.zusatzfotoGrund),
         confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : null,
         needsExpert: Boolean(object.needsExpert),
         packageId: cleanEnrichmentText(object.packageId),
@@ -2372,6 +2420,23 @@ function mergeImportedReviewItems(existingItems, importedItems) {
       uncertain: imported.uncertain || current.uncertain || "",
       missing: imported.missing || current.missing || "",
       note: imported.note || current.note || "",
+      country: imported.country || current.country || "",
+      era: imported.era || current.era || "",
+      denomination: imported.denomination || current.denomination || "",
+      motive: imported.motive || current.motive || "",
+      usedState: imported.usedState || current.usedState || "",
+      condition: imported.condition || current.condition || "",
+      catalogHint: imported.catalogHint || current.catalogHint || "",
+      valueClass: imported.valueClass ?? current.valueClass ?? null,
+      valueMin: imported.valueMin ?? current.valueMin ?? null,
+      valueMax: imported.valueMax ?? current.valueMax ?? null,
+      requiredFollowUp:
+        imported.requiredFollowUp.length > 0
+          ? imported.requiredFollowUp
+          : Array.isArray(current.requiredFollowUp)
+            ? current.requiredFollowUp
+            : [],
+      followUpReason: imported.followUpReason || current.followUpReason || "",
       status: imported.label || imported.readable ? "gefunden" : current.status,
     };
 

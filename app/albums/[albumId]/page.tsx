@@ -31,6 +31,12 @@ type ReviewItem = {
   missing: string;
   note: string;
   ocrText: string;
+  catalogHint: string;
+  valueClass: number | null;
+  valueMin: number | null;
+  valueMax: number | null;
+  requiredFollowUp: string[];
+  followUpReason: string;
   x: string | number;
   y: string | number;
   w: string | number;
@@ -101,6 +107,14 @@ function reviewItemsFromRaw(analysisRaw: unknown): ReviewItem[] {
         missing: typeof value.missing === "string" ? value.missing : "",
         note: typeof value.note === "string" ? value.note : "",
         ocrText: typeof value.ocrText === "string" ? value.ocrText : "",
+        catalogHint: typeof value.catalogHint === "string" ? value.catalogHint : "",
+        valueClass: Number.isFinite(Number(value.valueClass)) ? Number(value.valueClass) : null,
+        valueMin: Number.isFinite(Number(value.valueMin)) ? Number(value.valueMin) : null,
+        valueMax: Number.isFinite(Number(value.valueMax)) ? Number(value.valueMax) : null,
+        requiredFollowUp: Array.isArray(value.requiredFollowUp)
+          ? value.requiredFollowUp.map(String).filter(Boolean)
+          : [],
+        followUpReason: typeof value.followUpReason === "string" ? value.followUpReason : "",
         x: typeof value.x === "string" || typeof value.x === "number" ? value.x : "",
         y: typeof value.y === "string" || typeof value.y === "number" ? value.y : "",
         w: typeof value.w === "string" || typeof value.w === "number" ? value.w : "",
@@ -115,6 +129,10 @@ function reviewItemsFromRaw(analysisRaw: unknown): ReviewItem[] {
         item.missing ||
         item.note ||
         item.ocrText ||
+        item.catalogHint ||
+        item.valueClass !== null ||
+        item.requiredFollowUp.length > 0 ||
+        item.followUpReason ||
         Number(item.w) > 0 ||
         Number(item.h) > 0,
     )
@@ -126,8 +144,20 @@ function reviewItemTitle(item: ReviewItem) {
 }
 
 function reviewItemMeta(item: ReviewItem) {
+  const valueRange =
+    item.valueMin !== null || item.valueMax !== null
+      ? `Wert: ${item.valueMin ?? "?"}-${item.valueMax ?? "?"} EUR`
+      : null;
+
   return [
     item.readable ? `Details: ${item.readable}` : null,
+    item.catalogHint ? `Katalog: ${item.catalogHint}` : null,
+    item.valueClass !== null ? `Wertklasse: ${item.valueClass}` : null,
+    valueRange,
+    item.requiredFollowUp.length > 0
+      ? `Zusatzbild: ${item.requiredFollowUp.join(", ")}`
+      : null,
+    item.followUpReason ? `Grund: ${item.followUpReason}` : null,
     item.ocrText ? `OCR: ${item.ocrText}` : null,
     item.uncertain ? `Unsicher: ${item.uncertain}` : null,
     item.missing ? `Offen: ${item.missing}` : null,
